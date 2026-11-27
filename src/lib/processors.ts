@@ -21,6 +21,7 @@ export async function processImage(file: File, options: ImageOptions): Promise<B
   assertFileSize(file)
   if (!file.type.startsWith('image/')) throw new Error('فایل انتخاب‌شده تصویر معتبر نیست.')
   if (!Number.isFinite(options.maxWidth) || options.maxWidth < 1) throw new Error('حداکثر عرض تصویر معتبر نیست.')
+  if (!Number.isFinite(options.quality) || options.quality < 0 || options.quality > 1) throw new Error('کیفیت تصویر باید بین صفر و یک باشد.')
   const bitmap = await createImageBitmap(file)
   try {
     if (!bitmap.width || !bitmap.height) throw new Error('ابعاد تصویر معتبر نیست.')
@@ -233,8 +234,18 @@ export async function xlsxToCsvZip(file: File): Promise<Uint8Array> {
     sheet.eachRow({ includeEmpty: false }, row => {
       const values = Array.from({ length: row.cellCount }, (_, index) => row.getCell(index + 1).value)
       rows.push(values.map(value => {
-        if (value && typeof value === 'object' && 'text' in value) return String((value as { text: unknown }).text)
         if (value instanceof Date) return value.toISOString()
+        if (value && typeof value === 'object') {
+          const cell = value as Record<string, unknown>
+          if (Array.isArray(cell.richText)) return cell.richText.map(part => {
+            if (part && typeof part === 'object' && 'text' in part) return String((part as { text: unknown }).text)
+            return ''
+          }).join('')
+          if ('text' in cell) return String(cell.text)
+          if ('result' in cell) return cell.result == null ? '' : String(cell.result)
+          if ('hyperlink' in cell) return String(cell.hyperlink)
+          if ('error' in cell) return String(cell.error)
+        }
         return value == null ? '' : String(value)
       }))
     })
