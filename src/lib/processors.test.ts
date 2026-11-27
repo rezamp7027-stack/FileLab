@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PDFDocument } from 'pdf-lib'
 import { zipSync, unzipSync, strToU8 } from 'fflate'
-import { docxToText, csvToXlsx, xlsxToCsvZip } from './processors'
-import { createZipFromFiles, extractZip, extractPdfPages, mergePdfs, rotatePdf } from './processors'
+import { docxToText, csvToXlsx, xlsxToCsvZip, processVideo, createZipFromFiles, extractZip, extractPdfPages, mergePdfs, rotatePdf } from './processors'
 
 const makeFile = (name: string, content: string, type = 'application/octet-stream') =>
   new File([content], name, { type })
@@ -78,7 +77,7 @@ describe('Document and spreadsheet processors', () => {
   })
 
   it('converts CSV to XLSX and exports worksheets back to CSV', async () => {
-    const csv = new File(['name,score\\nAda,10\\nLinus,20'], 'scores.csv', { type: 'text/csv' })
+    const csv = new File([`name,score\nAda,10\nLinus,20`], 'scores.csv', { type: 'text/csv' })
     const xlsx = await csvToXlsx(csv)
     const xlsxFile = new File([await xlsx.arrayBuffer()], 'scores.xlsx')
     const archive = await xlsxToCsvZip(xlsxFile)
@@ -86,5 +85,12 @@ describe('Document and spreadsheet processors', () => {
     const csvOutput = new TextDecoder().decode(entries['Sheet1.csv'])
     expect(csvOutput).toContain('Ada')
     expect(csvOutput).toContain('20')
+  })
+})
+
+describe('Video validation', () => {
+  it('rejects unsupported extensions before loading the WebAssembly engine', async () => {
+    await expect(processVideo(makeFile('not-a-video.txt', 'hello'), { quality: 28, maxWidth: 1920 }))
+      .rejects.toThrow('فرمت ویدئو پشتیبانی نمی‌شود.')
   })
 })
