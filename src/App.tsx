@@ -11,20 +11,20 @@ import {
 } from './lib/processors'
 
 type Category = 'all' | 'pdf' | 'document' | 'spreadsheet' | 'image' | 'video' | 'archive'
-type Tool = { id: string; category: Exclude<Category, 'all'>; title: string; description: string; status: 'ready' | 'soon'; icon: typeof FileText; formats: string; multiple?: boolean; accept?: string }
+type Tool = { id: string; category: Exclude<Category, 'all'>; title: string; description: string; titleEn: string; descriptionEn: string; status: 'ready' | 'soon'; icon: typeof FileText; formats: string; multiple?: boolean; accept?: string }
 const tools: Tool[] = [
-  { id: 'merge-pdf', category: 'pdf', title: 'ادغام PDF', description: 'چند فایل PDF را در یک سند ترکیب کن.', status: 'ready', icon: Layers3, formats: 'PDF', multiple: true, accept: '.pdf,application/pdf' },
-  { id: 'extract-pdf', category: 'pdf', title: 'استخراج صفحات PDF', description: 'صفحات دلخواه را در یک PDF جدا ذخیره کن.', status: 'ready', icon: Scissors, formats: 'PDF', accept: '.pdf,application/pdf' },
-  { id: 'rotate-pdf', category: 'pdf', title: 'چرخاندن PDF', description: 'تمام صفحات سند را ۹۰، ۱۸۰ یا ۲۷۰ درجه بچرخان.', status: 'ready', icon: RotateCw, formats: 'PDF', accept: '.pdf,application/pdf' },
-  { id: 'image-compress', category: 'image', title: 'فشرده‌سازی و تبدیل تصویر', description: 'حجم، ابعاد و فرمت خروجی تصویر را تنظیم کن.', status: 'ready', icon: FileImage, formats: 'JPG · PNG · WEBP', accept: 'image/*' },
-  { id: 'image-pdf', category: 'image', title: 'تصویر به PDF', description: 'یک یا چند تصویر را به سند PDF تبدیل کن.', status: 'ready', icon: FileImage, formats: 'JPG · PNG · WEBP', multiple: true, accept: 'image/*' },
-  { id: 'docx-text', category: 'document', title: 'استخراج متن Word', description: 'متن فایل DOCX را به TXT تبدیل کن.', status: 'ready', icon: FileText, formats: 'DOCX · TXT', accept: '.docx' },
-  { id: 'txt-docx', category: 'document', title: 'TXT به Word', description: 'فایل متنی را به سند DOCX تبدیل کن.', status: 'ready', icon: FileText, formats: 'TXT · DOCX', accept: '.txt,.text' },
-  { id: 'xlsx-csv', category: 'spreadsheet', title: 'Excel به CSV', description: 'تمام برگه‌های Excel را به فایل‌های CSV تبدیل کن.', status: 'ready', icon: FileSpreadsheet, formats: 'XLSX · CSV', accept: '.xlsx' },
-  { id: 'csv-xlsx', category: 'spreadsheet', title: 'CSV به Excel', description: 'فایل CSV را به workbook اکسل تبدیل کن.', status: 'ready', icon: FileSpreadsheet, formats: 'CSV · XLSX', accept: '.csv,text/csv' },
-  { id: 'zip-extract', category: 'archive', title: 'استخراج ZIP', description: 'فایل‌های داخل آرشیو ZIP را جداگانه دریافت کن.', status: 'ready', icon: Archive, formats: 'ZIP', accept: '.zip,application/zip' },
-  { id: 'zip-create', category: 'archive', title: 'ساخت ZIP', description: 'چند فایل را در یک آرشیو فشرده قرار بده.', status: 'ready', icon: Archive, formats: 'ZIP', multiple: true },
-  { id: 'video-compress', category: 'video', title: 'فشرده‌سازی ویدئو', description: 'تبدیل و فشرده‌سازی با موتور FFmpeg در مرورگر.', status: 'soon', icon: Film, formats: 'MP4 · MOV · WEBM' },
+  { id: 'merge-pdf', category: 'pdf', title: 'ادغام PDF', description: 'چند فایل PDF را در یک سند ترکیب کن.', titleEn: 'Merge PDFs', descriptionEn: 'Combine multiple PDF files into one document.', status: 'ready', icon: Layers3, formats: 'PDF', multiple: true, accept: '.pdf,application/pdf' },
+  { id: 'extract-pdf', category: 'pdf', title: 'استخراج صفحات PDF', description: 'صفحات دلخواه را در یک PDF جدا ذخیره کن.', titleEn: 'Extract PDF pages', descriptionEn: 'Save selected pages as a separate PDF.', status: 'ready', icon: Scissors, formats: 'PDF', accept: '.pdf,application/pdf' },
+  { id: 'rotate-pdf', category: 'pdf', title: 'چرخاندن PDF', description: 'تمام صفحات سند را ۹۰، ۱۸۰ یا ۲۷۰ درجه بچرخان.', titleEn: 'Rotate PDF', descriptionEn: 'Rotate every page by 90, 180 or 270 degrees.', status: 'ready', icon: RotateCw, formats: 'PDF', accept: '.pdf,application/pdf' },
+  { id: 'image-compress', category: 'image', title: 'فشرده‌سازی و تبدیل تصویر', description: 'حجم، ابعاد و فرمت خروجی تصویر را تنظیم کن.', titleEn: 'Compress & convert image', descriptionEn: 'Adjust image size, dimensions and output format.', status: 'ready', icon: FileImage, formats: 'JPG · PNG · WEBP', accept: 'image/*' },
+  { id: 'image-pdf', category: 'image', title: 'تصویر به PDF', description: 'یک یا چند تصویر را به سند PDF تبدیل کن.', titleEn: 'Images to PDF', descriptionEn: 'Combine one or more images into a PDF document.', status: 'ready', icon: FileImage, formats: 'JPG · PNG · WEBP', multiple: true, accept: 'image/*' },
+  { id: 'docx-text', category: 'document', title: 'استخراج متن Word', description: 'متن فایل DOCX را به TXT تبدیل کن.', titleEn: 'Extract Word text', descriptionEn: 'Extract plain text from a DOCX document.', status: 'ready', icon: FileText, formats: 'DOCX · TXT', accept: '.docx' },
+  { id: 'txt-docx', category: 'document', title: 'TXT به Word', description: 'فایل متنی را به سند DOCX تبدیل کن.', titleEn: 'TXT to Word', descriptionEn: 'Create a basic DOCX document from a text file.', status: 'ready', icon: FileText, formats: 'TXT · DOCX', accept: '.txt,.text' },
+  { id: 'xlsx-csv', category: 'spreadsheet', title: 'Excel به CSV', description: 'تمام برگه‌های Excel را به فایل‌های CSV تبدیل کن.', titleEn: 'Excel to CSV', descriptionEn: 'Export each Excel worksheet as a CSV file.', status: 'ready', icon: FileSpreadsheet, formats: 'XLSX · CSV', accept: '.xlsx' },
+  { id: 'csv-xlsx', category: 'spreadsheet', title: 'CSV به Excel', description: 'فایل CSV را به workbook اکسل تبدیل کن.', titleEn: 'CSV to Excel', descriptionEn: 'Convert a CSV file into an Excel workbook.', status: 'ready', icon: FileSpreadsheet, formats: 'CSV · XLSX', accept: '.csv,text/csv' },
+  { id: 'zip-extract', category: 'archive', title: 'استخراج ZIP', description: 'فایل‌های داخل آرشیو ZIP را جداگانه دریافت کن.', titleEn: 'Extract ZIP', descriptionEn: 'Extract files from a ZIP archive as individual downloads.', status: 'ready', icon: Archive, formats: 'ZIP', accept: '.zip,application/zip' },
+  { id: 'zip-create', category: 'archive', title: 'ساخت ZIP', description: 'چند فایل را در یک آرشیو فشرده قرار بده.', titleEn: 'Create ZIP', descriptionEn: 'Pack multiple files into one ZIP archive.', status: 'ready', icon: Archive, formats: 'ZIP', multiple: true },
+  { id: 'video-compress', category: 'video', title: 'فشرده‌سازی ویدئو', description: 'تبدیل و فشرده‌سازی با موتور FFmpeg در مرورگر.', titleEn: 'Compress video', descriptionEn: 'Convert and compress video using an in-browser FFmpeg engine.', status: 'soon', icon: Film, formats: 'MP4 · MOV · WEBM' },
 ]
 const categories: { id: Category; label: string; en: string; icon: typeof FileText }[] = [
   { id: 'all', label: 'همه ابزارها', en: 'All tools', icon: Layers3 },
@@ -56,7 +56,7 @@ function App() {
 
   const filteredTools = useMemo(() => tools.filter(tool =>
     (category === 'all' || tool.category === category) &&
-    (tool.title.toLowerCase().includes(search.toLowerCase()) || tool.description.toLowerCase().includes(search.toLowerCase()) || tool.formats.toLowerCase().includes(search.toLowerCase())),
+    (tool.title.toLowerCase().includes(search.toLowerCase()) || tool.description.toLowerCase().includes(search.toLowerCase()) || tool.titleEn.toLowerCase().includes(search.toLowerCase()) || tool.descriptionEn.toLowerCase().includes(search.toLowerCase()) || tool.formats.toLowerCase().includes(search.toLowerCase())),
   ), [category, search])
 
   const chooseTool = (tool: Tool) => {
@@ -222,7 +222,7 @@ function App() {
               {selectedTool ? (
                 <div className="workspace">
                   <button className="back-link" onClick={() => { setSelectedTool(null); setFiles([]); setMessage('') }}><ArrowRight size={16} /> {isEnglish ? 'Back to tools' : 'بازگشت به ابزارها'}</button>
-                  <div className="workspace-title"><span className="workspace-icon"><selectedTool.icon size={22} /></span><div><h3>{selectedTool.title}</h3><p>{selectedTool.description}</p></div></div>
+                  <div className="workspace-title"><span className="workspace-icon"><selectedTool.icon size={22} /></span><div><h3>{isEnglish ? selectedTool.titleEn : selectedTool.title}</h3><p>{isEnglish ? selectedTool.descriptionEn : selectedTool.description}</p></div></div>
                   <div className="dropzone" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files) }} onClick={() => inputRef.current?.click()}>
                     <input ref={inputRef} type="file" hidden multiple={!!selectedTool.multiple} accept={selectedTool.accept || '*/*'} onChange={e => { handleFiles(e.target.files || []); e.currentTarget.value = '' }} />
                     <span className="upload-icon"><UploadCloud size={25} /></span><b>{isEnglish ? 'Drop files here or browse' : 'فایل‌ها را اینجا رها کن یا انتخاب کن'}</b>
@@ -239,7 +239,7 @@ function App() {
                 </div>
               ) : (
                 <>
-                  <div className="tools-grid">{filteredTools.map(tool => { const Icon = tool.icon; return <button key={tool.id} className={tool.status === 'soon' ? 'tool-card disabled' : 'tool-card'} onClick={() => chooseTool(tool)}><div className="tool-card-top"><span className={'tool-icon ' + tool.category}><Icon size={20} /></span>{tool.status === 'ready' ? <span className="ready-label"><span /> {isEnglish ? 'Available' : 'فعال'}</span> : <span className="soon-label">{isEnglish ? 'Coming soon' : 'به‌زودی'}</span>}</div><h3>{isEnglish ? tool.id.replace(/-/g, ' ') : tool.title}</h3><p>{isEnglish ? tool.description : tool.description}</p><div className="tool-card-bottom"><small>{tool.formats}</small>{tool.status === 'ready' && <ArrowLeft size={16} />}</div></button> })}</div>
+                  <div className="tools-grid">{filteredTools.map(tool => { const Icon = tool.icon; return <button key={tool.id} className={tool.status === 'soon' ? 'tool-card disabled' : 'tool-card'} onClick={() => chooseTool(tool)}><div className="tool-card-top"><span className={'tool-icon ' + tool.category}><Icon size={20} /></span>{tool.status === 'ready' ? <span className="ready-label"><span /> {isEnglish ? 'Available' : 'فعال'}</span> : <span className="soon-label">{isEnglish ? 'Coming soon' : 'به‌زودی'}</span>}</div><h3>{isEnglish ? tool.titleEn : tool.title}</h3><p>{isEnglish ? tool.descriptionEn : tool.description}</p><div className="tool-card-bottom"><small>{tool.formats}</small>{tool.status === 'ready' && <ArrowLeft size={16} />}</div></button> })}</div>
                   {filteredTools.length === 0 && <div className="empty-state"><Search size={25} /><b>{isEnglish ? 'No tools found' : 'ابزاری پیدا نشد'}</b><span>{isEnglish ? 'Try another keyword.' : 'عبارت دیگری را جست‌وجو کن.'}</span></div>}
                 </>
               )}
