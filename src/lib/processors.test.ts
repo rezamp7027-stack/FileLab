@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { PDFDocument } from 'pdf-lib'
 import { zipSync, unzipSync, strToU8 } from 'fflate'
-import { docxToText, csvToXlsx, xlsxToCsvZip, processVideo, createZipFromFiles, extractZip, extractPdfPages, mergePdfs, rotatePdf } from './processors'
+import { docxToText, textToDocx, csvToXlsx, xlsxToCsvZip, processVideo, createZipFromFiles, extractZip, extractPdfPages, mergePdfs, rotatePdf } from './processors'
 
 const makeFile = (name: string, content: string, type = 'application/octet-stream') =>
   new File([content], name, { type })
 
 describe('PDF processors', () => {
+  it('rejects a single input instead of silently creating a one-file merge', async () => {
+    await expect(mergePdfs([makeFile('one.pdf', 'not a pdf')])).rejects.toThrow()
+  })
+
   it('merges two PDFs and preserves all pages', async () => {
     const a = await PDFDocument.create(); a.addPage()
     const b = await PDFDocument.create(); b.addPage(); b.addPage()
@@ -75,6 +79,15 @@ describe('Document and spreadsheet processors', () => {
     const blob = await Packer.toBlob(doc)
     const file = new File([await blob.arrayBuffer()], 'test.docx')
     expect(await docxToText(file)).toContain('FileLab DOCX test')
+  })
+
+  it('converts TXT to DOCX and preserves its text on re-read', async () => {
+    const textFile = makeFile('notes.txt', 'First line\\nSecond line', 'text/plain')
+    const docx = await textToDocx(textFile)
+    const docxFile = new File([await docx.arrayBuffer()], 'notes.docx')
+    const extracted = await docxToText(docxFile)
+    expect(extracted).toContain('First line')
+    expect(extracted).toContain('Second line')
   })
 
   it('converts CSV to XLSX and exports worksheets back to CSV', async () => {
