@@ -98,17 +98,17 @@ function App() {
       switch (selectedTool.id) {
         case 'merge-pdf': {
           const out = await mergePdfs(files); downloadBlob(out, 'filelab-merged.pdf', 'application/pdf')
-          showMessage('فایل‌های PDF با موفقیت ادغام شدند.')
+          showMessage(isEnglish ? 'PDF files merged successfully.' : 'فایل‌های PDF با موفقیت ادغام شدند.')
           break
         }
         case 'extract-pdf': {
           const out = await extractPdfPages(first, pageRange); downloadBlob(out, 'filelab-pages.pdf', 'application/pdf')
-          showMessage('صفحات انتخاب‌شده در فایل PDF جدید ذخیره شدند.')
+          showMessage(isEnglish ? 'Selected pages saved to a new PDF.' : 'صفحات انتخاب‌شده در فایل PDF جدید ذخیره شدند.')
           break
         }
         case 'rotate-pdf': {
           const out = await rotatePdf(first, rotation); downloadBlob(out, 'filelab-rotated.pdf', 'application/pdf')
-          showMessage('چرخش صفحات PDF انجام شد.')
+          showMessage(isEnglish ? 'PDF pages rotated successfully.' : 'چرخش صفحات PDF انجام شد.')
           break
         }
         case 'image-compress': {
@@ -121,44 +121,44 @@ function App() {
         }
         case 'image-pdf': {
           const out = await imagesToPdf(files); downloadBlob(out, 'filelab-images.pdf', 'application/pdf')
-          showMessage('تصاویر به PDF تبدیل شدند.')
+          showMessage(isEnglish ? 'Images converted to PDF.' : 'تصاویر به PDF تبدیل شدند.')
           break
         }
         case 'docx-text': {
           const text = await docxToText(first); downloadBlob(new Blob([text], { type: 'text/plain;charset=utf-8' }), first.name.replace(/\.docx$/i, '') + '.txt')
-          showMessage('متن سند استخراج شد.')
+          showMessage(isEnglish ? 'Document text extracted.' : 'متن سند استخراج شد.')
           break
         }
         case 'txt-docx': {
           const out = await textToDocx(first); downloadBlob(out, first.name.replace(/\.txt$/i, '') + '.docx')
-          showMessage('سند Word ساخته شد.')
+          showMessage(isEnglish ? 'Word document created.' : 'سند Word ساخته شد.')
           break
         }
         case 'xlsx-csv': {
           const out = await xlsxToCsvZip(first); downloadBlob(out, first.name.replace(/\.xlsx$/i, '') + '-csv.zip', 'application/zip')
-          showMessage('برگه‌های Excel به CSV تبدیل و در ZIP بسته‌بندی شدند.')
+          showMessage(isEnglish ? 'Excel worksheets exported as CSV files in a ZIP archive.' : 'برگه‌های Excel به CSV تبدیل و در ZIP بسته‌بندی شدند.')
           break
         }
         case 'csv-xlsx': {
           const out = await csvToXlsx(first); downloadBlob(out, first.name.replace(/\.csv$/i, '') + '.xlsx')
-          showMessage('فایل Excel ساخته شد.')
+          showMessage(isEnglish ? 'Excel workbook created.' : 'فایل Excel ساخته شد.')
           break
         }
         case 'zip-extract': {
           const entries = extractZip(new Uint8Array(await first.arrayBuffer())); downloadExtracted(entries)
-          showMessage(entries.length + ' فایل از آرشیو استخراج شد. مرورگر ممکن است برای دانلود چند فایل اجازه بخواهد.')
+          showMessage(isEnglish ? entries.length + ' files extracted. Your browser may ask permission for multiple downloads.' : entries.length + ' فایل از آرشیو استخراج شد. مرورگر ممکن است برای دانلود چند فایل اجازه بخواهد.')
           break
         }
         case 'zip-create': {
           const out = await createZipFromFiles(files); downloadBlob(out, 'filelab-archive.zip', 'application/zip')
-          showMessage('آرشیو ZIP ساخته شد.')
+          showMessage(isEnglish ? 'ZIP archive created.' : 'آرشیو ZIP ساخته شد.')
           break
         }
         case 'video-compress': {
           setVideoProgress(0)
           const out = await processVideo(first, { quality: videoQuality, maxWidth: videoWidth, onProgress: setVideoProgress })
           downloadBlob(out, first.name.replace(/\.[^.]+$/, '') + '-filelab.mp4', 'video/mp4')
-          showMessage('ویدئو به MP4 تبدیل و فشرده شد.')
+          showMessage(isEnglish ? 'Video converted and compressed to MP4.' : 'ویدئو به MP4 تبدیل و فشرده شد.')
           setVideoProgress(100)
           break
         }
@@ -242,11 +242,11 @@ function App() {
                     <button className="browse-button" type="button" onClick={e => { e.stopPropagation(); inputRef.current?.click() }}><FolderOpen size={15} /> {isEnglish ? 'Choose files' : 'انتخاب فایل'}</button>
                   </div>
                   {files.length > 0 && <div className="selected-files"><div className="selected-head"><b>{isEnglish ? 'Selected files' : 'فایل‌های انتخاب‌شده'}</b><button onClick={() => setFiles([])}><X size={14} /> {isEnglish ? 'Clear' : 'پاک‌کردن'}</button></div>{files.map((file, index) => <div className="selected-file" key={file.name + index}><FileText size={17} /><span>{file.name}</span><small>{(file.size / 1024 / 1024).toFixed(2)} MB</small></div>)}</div>}
-                  {selectedTool.id === 'image-compress' && <div className="options-panel"><label>فرمت خروجی<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>کیفیت (برای JPG و WEBP) <b>{quality}%</b><input type="range" min="30" max="100" value={quality} disabled={format === 'image/png'} onChange={e => setQuality(Number(e.target.value))} /></label><label>حداکثر عرض<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
-                  {selectedTool.id === 'extract-pdf' && <div className="options-panel single-option"><label>شماره صفحات (مثال: 1-3,5)<input value={pageRange} onChange={e => setPageRange(e.target.value)} placeholder="1-3,5" /></label></div>}
-                  {selectedTool.id === 'rotate-pdf' && <div className="options-panel single-option"><label>میزان چرخش<select value={rotation} onChange={e => setRotation(Number(e.target.value) as typeof rotation)}><option value="90">۹۰ درجه</option><option value="180">۱۸۰ درجه</option><option value="270">۲۷۰ درجه</option></select></label></div>}
-                  {selectedTool.id === 'video-compress' && <div className="options-panel"><label>کیفیت (CRF: کمتر = بهتر)<select value={videoQuality} onChange={e => setVideoQuality(Number(e.target.value))}><option value="20">بالاتر</option><option value="24">زیاد</option><option value="28">متعادل</option><option value="32">کم‌حجم‌تر</option><option value="35">حداکثر فشرده‌سازی</option></select></label><label>حداکثر عرض<select value={videoWidth} onChange={e => setVideoWidth(Number(e.target.value))}><option value="1280">1280 px</option><option value="1920">1920 px</option><option value="2560">2560 px</option><option value="3840">3840 px</option></select></label></div>}
-                  {selectedTool.id === 'video-compress' && videoProgress > 0 && <div className="video-progress"><div><span>پیشرفت تقریبی</span><b>{videoProgress}%</b></div><span className="progress-track"><i style={{ width: videoProgress + '%' }} /></span></div>}
+                  {selectedTool.id === 'image-compress' && <div className="options-panel"><label>{isEnglish ? 'Output format' : 'فرمت خروجی'}<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>{isEnglish ? 'Quality (JPG / WEBP)' : 'کیفیت (برای JPG و WEBP)'} <b>{quality}%</b><input type="range" min="30" max="100" value={quality} disabled={format === 'image/png'} onChange={e => setQuality(Number(e.target.value))} /></label><label>{isEnglish ? 'Max width' : 'حداکثر عرض'}<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
+                  {selectedTool.id === 'extract-pdf' && <div className="options-panel single-option"><label>{isEnglish ? 'Page numbers (example: 1-3,5)' : 'شماره صفحات (مثال: 1-3,5)'}<input value={pageRange} onChange={e => setPageRange(e.target.value)} placeholder="1-3,5" /></label></div>}
+                  {selectedTool.id === 'rotate-pdf' && <div className="options-panel single-option"><label>{isEnglish ? 'Rotation' : 'میزان چرخش'}<select value={rotation} onChange={e => setRotation(Number(e.target.value) as typeof rotation)}><option value="90">{isEnglish ? '90 degrees' : '۹۰ درجه'}</option><option value="180">{isEnglish ? '180 degrees' : '۱۸۰ درجه'}</option><option value="270">{isEnglish ? '270 degrees' : '۲۷۰ درجه'}</option></select></label></div>}
+                  {selectedTool.id === 'video-compress' && <div className="options-panel"><label>{isEnglish ? 'Quality (lower CRF = better)' : 'کیفیت (CRF: کمتر = بهتر)'}<select value={videoQuality} onChange={e => setVideoQuality(Number(e.target.value))}><option value="20">{isEnglish ? 'Higher quality' : 'بالاتر'}</option><option value="24">{isEnglish ? 'High' : 'زیاد'}</option><option value="28">{isEnglish ? 'Balanced' : 'متعادل'}</option><option value="32">{isEnglish ? 'Smaller file' : 'کم‌حجم‌تر'}</option><option value="35">{isEnglish ? 'Maximum compression' : 'حداکثر فشرده‌سازی'}</option></select></label><label>{isEnglish ? 'Max width' : 'حداکثر عرض'}<select value={videoWidth} onChange={e => setVideoWidth(Number(e.target.value))}><option value="1280">1280 px</option><option value="1920">1920 px</option><option value="2560">2560 px</option><option value="3840">3840 px</option></select></label></div>}
+                  {selectedTool.id === 'video-compress' && videoProgress > 0 && <div className="video-progress"><div><span>{isEnglish ? 'Estimated progress' : 'پیشرفت تقریبی'}</span><b>{videoProgress}%</b></div><span className="progress-track"><i style={{ width: videoProgress + '%' }} /></span></div>}
                   {message && <div role="status" className={messageError ? 'result-message error' : 'result-message'}>{messageError ? <X size={16} /> : <Check size={16} />}{message}</div>}
                   <button className="primary-button run-button" disabled={!files.length || busy} onClick={runTool}>{busy ? <><span className="spinner" /> {isEnglish ? 'Processing...' : 'در حال پردازش...'}</> : <>{isEnglish ? 'Process files' : 'پردازش فایل'} <ArrowLeft size={17} /></>}</button>
                   <p className="local-note"><LockKeyhole size={14} /> {isEnglish ? 'Files are processed locally in your browser.' : 'فایل‌ها داخل مرورگر پردازش می‌شوند و به سرور آپلود نمی‌شوند.'}</p>{selectedTool.id === 'video-compress' && <p className="video-note">{isEnglish ? 'The first run downloads about 30 MB of FFmpeg core. Processing depends on device memory and CPU.' : 'موتور ویدئو در اولین اجرا حدود ۳۰ مگابایت از CDN دریافت می‌کند؛ اجرای آن به حافظه و توان دستگاه وابسته است.'}</p>}
