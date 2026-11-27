@@ -193,7 +193,8 @@ export async function createZipFromFiles(files: File[]): Promise<Uint8Array> {
     assertFileSize(file)
     const rawName = file.name.replace(/[\\/]/g, '_').replace(/^\\.+/, '').trim()
     if (!rawName) continue
-    const name = uniqueArchiveName(rawName, used)
+    const safeRawName = rawName === '__proto__' ? '_proto_' : rawName
+    const name = uniqueArchiveName(safeRawName, used)
     total += file.size
     if (total > MAX_ARCHIVE_OUTPUT_BYTES) throw new Error('حجم مجموع فایل‌ها از ۲۵۰ مگابایت بیشتر است.')
     setZipEntry(entries, name, new Uint8Array(await file.arrayBuffer()))

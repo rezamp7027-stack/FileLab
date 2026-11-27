@@ -53,7 +53,7 @@ describe('ZIP processors', () => {
       makeFile('__proto__', 'prototype-safe'),
     ])
     const entries = extractZip(archive)
-    expect(entries.map(entry => entry.name)).toEqual(['same.txt', 'same (2).txt', '__proto__'])
+    expect(entries.map(entry => entry.name)).toEqual(['same.txt', 'same (2).txt', '_proto_'])
   })
 
   it('filters path traversal entries during extraction', () => {

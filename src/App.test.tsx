@@ -42,7 +42,8 @@ describe('FileLab interface', () => {
     renderApp()
     const search = host.querySelector('input[placeholder="جست‌وجوی ابزار..."]') as HTMLInputElement
     act(() => {
-      search.value = 'Compress video'
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set
+      setter?.call(search, 'Compress video')
       search.dispatchEvent(new Event('input', { bubbles: true }))
     })
     const titles = [...host.querySelectorAll('.tool-card h3')].map(element => element.textContent)
