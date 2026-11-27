@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { PDFDocument } from 'pdf-lib'
+import { zipSync, unzipSync, strToU8 } from 'fflate'
+import { docxToText, csvToXlsx, xlsxToCsvZip } from './processors'
 import { createZipFromFiles, extractZip, extractPdfPages, mergePdfs, rotatePdf } from './processors'
 
 const makeFile = (name: string, content: string, type = 'application/octet-stream') =>
@@ -43,5 +45,46 @@ describe('ZIP processors', () => {
 
   it('rejects an empty archive', () => {
     expect(() => extractZip(new Uint8Array())).toThrow()
+  })
+
+  it('keeps duplicate filenames distinct when creating ZIP archives', async () => {
+    const archive = await createZipFromFiles([
+      makeFile('same.txt', 'first'),
+      makeFile('same.txt', 'second'),
+    ])
+    const entries = extractZip(archive)
+    expect(entries.map(entry => entry.name)).toEqual(['same.txt', 'same (2).txt'])
+  })
+
+  it('filters path traversal entries during extraction', () => {
+    const archive = zipSync({
+      '../outside.txt': strToU8('unsafe'),
+      'folder/../../escape.txt': strToU8('unsafe too'),
+      'safe.txt': strToU8('safe'),
+    })
+    const entries = extractZip(archive)
+    expect(entries.map(entry => entry.name)).toEqual(['safe.txt'])
+  })
+
+})
+
+describe('Document and spreadsheet processors', () => {
+  it('extracts text from a generated DOCX file', async () => {
+    const { Document, Packer, Paragraph } = await import('docx')
+    const doc = new Document({ sections: [{ children: [new Paragraph('FileLab DOCX test')] }] })
+    const blob = await Packer.toBlob(doc)
+    const file = new File([await blob.arrayBuffer()], 'test.docx')
+    expect(await docxToText(file)).toContain('FileLab DOCX test')
+  })
+
+  it('converts CSV to XLSX and exports worksheets back to CSV', async () => {
+    const csv = new File(['name,score\\nAda,10\\nLinus,20'], 'scores.csv', { type: 'text/csv' })
+    const xlsx = await csvToXlsx(csv)
+    const xlsxFile = new File([await xlsx.arrayBuffer()], 'scores.xlsx')
+    const archive = await xlsxToCsvZip(xlsxFile)
+    const entries = unzipSync(archive)
+    const csvOutput = new TextDecoder().decode(entries['Sheet1.csv'])
+    expect(csvOutput).toContain('Ada')
+    expect(csvOutput).toContain('20')
   })
 })
