@@ -1,63 +1,52 @@
 # FileLab
 
-A bilingual (Persian/English) file-processing workspace with a dark premium interface. The first release prioritizes local, in-browser processing: files handled by active tools are not uploaded to a server.
+A bilingual Persian/English, local-first file workspace built with React, TypeScript and Vite.
 
-## Current status
+## Working tools
 
-### Working in the browser
-- Merge multiple PDF files into one PDF.
-- Compress/resize/convert images to JPG, PNG, or WEBP.
-- Repackage the contents of a ZIP archive into a clean ZIP output.
-- Persian RTL / English LTR interface, responsive layout, tool search and category filters.
+- **PDF:** merge files, extract selected page ranges, rotate all pages.
+- **Images:** resize/compress/convert JPG, PNG and WEBP; convert images to PDF.
+- **Documents:** extract plain text from DOCX; create a basic DOCX from TXT.
+- **Spreadsheets:** convert XLSX worksheets to CSV files (delivered as a ZIP); convert CSV to XLSX.
+- **Archives:** create ZIP archives and extract ZIP entries as individual downloads.
 
-### Planned
-- PDF split, reorder, rotate, extract pages and protected-PDF workflows.
-- DOCX read/convert/edit workflows.
-- XLSX/CSV conversion and sheet operations.
-- Video conversion/compression (requires a dedicated WebAssembly or remote processing strategy).
-- 7z/RAR support, accounts, job history, storage and usage controls.
+Video processing is intentionally marked as coming soon. A robust FFmpeg WebAssembly engine needs a separately loaded, large runtime and device-memory safeguards; the UI does not pretend this is already available.
 
-The interface marks unfinished tools as "Coming soon"; it does not simulate successful processing.
+## Privacy and limits
+
+All current file operations run in the browser. Files are not sent to a FileLab server. Each input file is limited to 100 MB; ZIP extraction is capped at 500 entries and 250 MB total expanded size. Browser download policies may ask permission when extracting multiple files.
+
+DOCX text extraction preserves text, not the original layout. TXT-to-DOCX creates a simple paragraph-based document. XLSX-to-CSV exports each worksheet into a CSV file inside one ZIP.
 
 ## Stack
-- React + TypeScript + Vite
-- pdf-lib for PDF assembly
-- fflate for ZIP handling
-- Canvas / createImageBitmap for image processing
-- Cloudflare Pages for static hosting (recommended)
-- Supabase is reserved for a later account/metadata layer. Do not place service-role keys in frontend code.
+
+- React 19, TypeScript, Vite
+- pdf-lib for PDF operations
+- Canvas / createImageBitmap for image operations
+- Mammoth and docx for basic DOCX workflows
+- ExcelJS and Papa Parse for spreadsheet workflows
+- fflate for ZIP archives
+- Vitest for unit tests
+
+No server or credentials are required for the current client-only release. Never put Supabase service-role keys in frontend code.
 
 ## Development
 
-Requirements: Node.js 20.19+ or 22.12+.
+Requires Node.js 22.12+.
 
 ```bash
 npm install
 npm run dev
-```
-
-## Continuous integration
-
-GitHub Actions runs the production build on pushes to `main` and pull requests.
-
-## Quality checks
-
-```bash
 npm run typecheck
+npm test
 npm run build
 ```
 
 ## Deploy
 
-Connect this repository to Cloudflare Pages:
-- Framework preset: Vite
+Cloudflare Pages:
 - Build command: `npm run build`
 - Build output directory: `dist`
+- Node version: 22
 
-No environment variables are required for the current client-only release.
-
-## Security notes
-- Active operations run in the user's browser.
-- Never upload private files without a clear user action and an explicit privacy notice.
-- Validate actual file content and enforce limits before adding any future server-side processing.
-- Keep Supabase service-role credentials server-side only.
+GitHub Actions runs type checking, tests and a production build on pushes and pull requests.

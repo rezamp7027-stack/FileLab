@@ -2,23 +2,29 @@ import { useMemo, useRef, useState } from 'react'
 import {
   Archive, ArrowDownToLine, ArrowLeft, ArrowRight, Check, FileImage, FileSpreadsheet,
   FileText, Film, FolderOpen, Globe2, Layers3, LockKeyhole, Menu, Search, ShieldCheck,
-  Sparkles, UploadCloud, X, Zap,
+  Sparkles, UploadCloud, X, Zap, RotateCw, Scissors,
 } from 'lucide-react'
-import { downloadBlob, extractZip, mergePdfs, processImage } from './lib/processors'
+import {
+  createZipFromFiles, csvToXlsx, docxToText, downloadBlob, downloadExtracted,
+  extractPdfPages, extractZip, imagesToPdf, mergePdfs, processImage, rotatePdf,
+  textToDocx, xlsxToCsvZip,
+} from './lib/processors'
 
 type Category = 'all' | 'pdf' | 'document' | 'spreadsheet' | 'image' | 'video' | 'archive'
-type Tool = { id: string; category: Exclude<Category, 'all'>; title: string; description: string; status: 'ready' | 'soon'; icon: typeof FileText; formats: string }
+type Tool = { id: string; category: Exclude<Category, 'all'>; title: string; description: string; status: 'ready' | 'soon'; icon: typeof FileText; formats: string; multiple?: boolean; accept?: string }
 const tools: Tool[] = [
-  { id: 'merge-pdf', category: 'pdf', title: 'ادغام PDF', description: 'چند فایل PDF را در یک سند ترکیب کن.', status: 'ready', icon: Layers3, formats: 'PDF' },
-  { id: 'image-compress', category: 'image', title: 'فشرده‌سازی تصویر', description: 'حجم تصویر را کم کن و فرمت خروجی را انتخاب کن.', status: 'ready', icon: FileImage, formats: 'JPG · PNG · WEBP' },
-  { id: 'zip-extract', category: 'archive', title: 'استخراج ZIP', description: 'محتوای آرشیو را استخراج و دوباره بسته‌بندی کن.', status: 'ready', icon: Archive, formats: 'ZIP' },
-  { id: 'split-pdf', category: 'pdf', title: 'تقسیم PDF', description: 'صفحات دلخواه را به فایل جدا تبدیل کن.', status: 'soon', icon: FileText, formats: 'PDF' },
-  { id: 'pdf-to-word', category: 'pdf', title: 'PDF به Word', description: 'محتوای PDF را به سند قابل ویرایش تبدیل کن.', status: 'soon', icon: FileText, formats: 'PDF · DOCX' },
-  { id: 'word-pdf', category: 'document', title: 'Word به PDF', description: 'سند Word را برای اشتراک‌گذاری آماده کن.', status: 'soon', icon: FileText, formats: 'DOCX · PDF' },
-  { id: 'excel-csv', category: 'spreadsheet', title: 'Excel به CSV', description: 'برگه‌های اکسل را به داده CSV تبدیل کن.', status: 'soon', icon: FileSpreadsheet, formats: 'XLSX · CSV' },
-  { id: 'image-convert', category: 'image', title: 'تبدیل فرمت تصویر', description: 'تصویر را به JPG، PNG یا WEBP تبدیل کن.', status: 'ready', icon: FileImage, formats: 'JPG · PNG · WEBP' },
-  { id: 'video-compress', category: 'video', title: 'فشرده‌سازی ویدئو', description: 'حجم ویدئو را با کنترل کیفیت کاهش بده.', status: 'soon', icon: Film, formats: 'MP4 · MOV · WEBM' },
-  { id: 'zip-create', category: 'archive', title: 'ساخت ZIP', description: 'چند فایل را در یک آرشیو ZIP قرار بده.', status: 'soon', icon: Archive, formats: 'ZIP' },
+  { id: 'merge-pdf', category: 'pdf', title: 'ادغام PDF', description: 'چند فایل PDF را در یک سند ترکیب کن.', status: 'ready', icon: Layers3, formats: 'PDF', multiple: true, accept: '.pdf,application/pdf' },
+  { id: 'extract-pdf', category: 'pdf', title: 'استخراج صفحات PDF', description: 'صفحات دلخواه را در یک PDF جدا ذخیره کن.', status: 'ready', icon: Scissors, formats: 'PDF', accept: '.pdf,application/pdf' },
+  { id: 'rotate-pdf', category: 'pdf', title: 'چرخاندن PDF', description: 'تمام صفحات سند را ۹۰، ۱۸۰ یا ۲۷۰ درجه بچرخان.', status: 'ready', icon: RotateCw, formats: 'PDF', accept: '.pdf,application/pdf' },
+  { id: 'image-compress', category: 'image', title: 'فشرده‌سازی و تبدیل تصویر', description: 'حجم، ابعاد و فرمت خروجی تصویر را تنظیم کن.', status: 'ready', icon: FileImage, formats: 'JPG · PNG · WEBP', accept: 'image/*' },
+  { id: 'image-pdf', category: 'image', title: 'تصویر به PDF', description: 'یک یا چند تصویر را به سند PDF تبدیل کن.', status: 'ready', icon: FileImage, formats: 'JPG · PNG · WEBP', multiple: true, accept: 'image/*' },
+  { id: 'docx-text', category: 'document', title: 'استخراج متن Word', description: 'متن فایل DOCX را به TXT تبدیل کن.', status: 'ready', icon: FileText, formats: 'DOCX · TXT', accept: '.docx' },
+  { id: 'txt-docx', category: 'document', title: 'TXT به Word', description: 'فایل متنی را به سند DOCX تبدیل کن.', status: 'ready', icon: FileText, formats: 'TXT · DOCX', accept: '.txt,.text' },
+  { id: 'xlsx-csv', category: 'spreadsheet', title: 'Excel به CSV', description: 'تمام برگه‌های Excel را به فایل‌های CSV تبدیل کن.', status: 'ready', icon: FileSpreadsheet, formats: 'XLSX · CSV', accept: '.xlsx' },
+  { id: 'csv-xlsx', category: 'spreadsheet', title: 'CSV به Excel', description: 'فایل CSV را به workbook اکسل تبدیل کن.', status: 'ready', icon: FileSpreadsheet, formats: 'CSV · XLSX', accept: '.csv,text/csv' },
+  { id: 'zip-extract', category: 'archive', title: 'استخراج ZIP', description: 'فایل‌های داخل آرشیو ZIP را جداگانه دریافت کن.', status: 'ready', icon: Archive, formats: 'ZIP', accept: '.zip,application/zip' },
+  { id: 'zip-create', category: 'archive', title: 'ساخت ZIP', description: 'چند فایل را در یک آرشیو فشرده قرار بده.', status: 'ready', icon: Archive, formats: 'ZIP', multiple: true },
+  { id: 'video-compress', category: 'video', title: 'فشرده‌سازی ویدئو', description: 'تبدیل و فشرده‌سازی با موتور FFmpeg در مرورگر.', status: 'soon', icon: Film, formats: 'MP4 · MOV · WEBM' },
 ]
 const categories: { id: Category; label: string; en: string; icon: typeof FileText }[] = [
   { id: 'all', label: 'همه ابزارها', en: 'All tools', icon: Layers3 },
@@ -29,12 +35,7 @@ const categories: { id: Category; label: string; en: string; icon: typeof FileTe
   { id: 'video', label: 'ویدئو', en: 'Video', icon: Film },
   { id: 'archive', label: 'فشرده', en: 'Archives', icon: Archive },
 ]
-const accepts: Record<string, string> = {
-  'merge-pdf': '.pdf',
-  'image-compress': 'image/*',
-  'image-convert': 'image/*',
-  'zip-extract': '.zip,application/zip',
-}
+const MAX_INPUT = 100 * 1024 * 1024
 
 function App() {
   const [category, setCategory] = useState<Category>('all')
@@ -43,11 +44,14 @@ function App() {
   const [files, setFiles] = useState<File[]>([])
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  const [messageError, setMessageError] = useState(false)
   const [language, setLanguage] = useState<'fa' | 'en'>('fa')
   const [mobileMenu, setMobileMenu] = useState(false)
   const [format, setFormat] = useState<'image/jpeg' | 'image/png' | 'image/webp'>('image/webp')
   const [quality, setQuality] = useState(78)
   const [maxWidth, setMaxWidth] = useState(2400)
+  const [pageRange, setPageRange] = useState('1-3')
+  const [rotation, setRotation] = useState<90 | 180 | 270>(90)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const filteredTools = useMemo(() => tools.filter(tool =>
@@ -57,57 +61,99 @@ function App() {
 
   const chooseTool = (tool: Tool) => {
     if (tool.status !== 'ready') return
-    setSelectedTool(tool)
-    setFiles([])
-    setMessage('')
+    setSelectedTool(tool); setFiles([]); setMessage(''); setMessageError(false)
   }
-
+  const showMessage = (value: string, error = false) => { setMessage(value); setMessageError(error) }
   const handleFiles = (incoming: FileList | File[]) => {
     const list = Array.from(incoming)
-    if (!list.length) return
-    if (selectedTool?.id === 'merge-pdf' && list.some(file => file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf'))) {
-      setMessage('برای این ابزار فقط فایل PDF انتخاب کن.')
-      return
+    if (!list.length || !selectedTool) return
+    if (list.some(file => file.size === 0 || file.size > MAX_INPUT)) return showMessage('هر فایل باید بین ۱ بایت تا ۱۰۰ مگابایت باشد.', true)
+    if (!selectedTool.multiple && list.length > 1) return showMessage('این ابزار در هر بار فقط یک فایل می‌پذیرد.', true)
+    const ext = (file: File) => file.name.split('.').pop()?.toLowerCase() || ''
+    const valid = (file: File) => {
+      switch (selectedTool.id) {
+        case 'merge-pdf': case 'extract-pdf': case 'rotate-pdf': return ext(file) === 'pdf' || file.type === 'application/pdf'
+        case 'image-compress': case 'image-pdf': return file.type.startsWith('image/') && ['png','jpg','jpeg','webp'].includes(ext(file))
+        case 'docx-text': return ext(file) === 'docx'
+        case 'txt-docx': return ext(file) === 'txt' || file.type === 'text/plain'
+        case 'xlsx-csv': return ext(file) === 'xlsx'
+        case 'csv-xlsx': return ext(file) === 'csv' || file.type === 'text/csv'
+        case 'zip-extract': return ext(file) === 'zip'
+        default: return true
+      }
     }
-    if (selectedTool?.category === 'image' && list.some(file => !file.type.startsWith('image/'))) {
-      setMessage('فقط فایل تصویری انتخاب کن.')
-      return
-    }
-    if (selectedTool?.id === 'zip-extract' && list.length > 1) {
-      setMessage('برای استخراج، هر بار یک فایل ZIP انتخاب کن.')
-      return
-    }
-    setFiles(list)
-    setMessage('')
+    if (list.some(file => !valid(file))) return showMessage('نوع یکی از فایل‌ها با ابزار انتخاب‌شده سازگار نیست.', true)
+    setFiles(list); showMessage('')
   }
 
   const runTool = async () => {
-    if (!selectedTool || files.length === 0) return
-    setBusy(true)
-    setMessage('')
+    if (!selectedTool || !files.length || busy) return
+    setBusy(true); showMessage('')
     try {
-      if (selectedTool.id === 'merge-pdf') {
-        const result = await mergePdfs(files)
-        downloadBlob(result, 'filelab-merged.pdf', 'application/pdf')
-        setMessage('فایل PDF ادغام شد و دانلود آن آغاز شد.')
-      } else if (selectedTool.id === 'image-compress' || selectedTool.id === 'image-convert') {
-        const file = files[0]
-        const blob = await processImage(file, { format, quality: quality / 100, maxWidth })
-        const extension = format === 'image/jpeg' ? 'jpg' : format === 'image/png' ? 'png' : 'webp'
-        const name = file.name.replace(/\.[^.]+$/, '') + '-filelab.' + extension
-        downloadBlob(blob, name)
-        const saved = Math.max(0, Math.round((1 - blob.size / file.size) * 100))
-        setMessage('خروجی آماده شد. تغییر حجم: ' + saved + '%')
-      } else if (selectedTool.id === 'zip-extract') {
-        const result = extractZip(new Uint8Array(await files[0].arrayBuffer()))
-        downloadBlob(result, files[0].name.replace(/\.zip$/i, '') + '-extracted.zip', 'application/zip')
-        setMessage('محتوای آرشیو استخراج و در یک ZIP جدید بسته‌بندی شد.')
+      const first = files[0]
+      switch (selectedTool.id) {
+        case 'merge-pdf': {
+          const out = await mergePdfs(files); downloadBlob(out, 'filelab-merged.pdf', 'application/pdf')
+          showMessage('فایل‌های PDF با موفقیت ادغام شدند.')
+          break
+        }
+        case 'extract-pdf': {
+          const out = await extractPdfPages(first, pageRange); downloadBlob(out, 'filelab-pages.pdf', 'application/pdf')
+          showMessage('صفحات انتخاب‌شده در فایل PDF جدید ذخیره شدند.')
+          break
+        }
+        case 'rotate-pdf': {
+          const out = await rotatePdf(first, rotation); downloadBlob(out, 'filelab-rotated.pdf', 'application/pdf')
+          showMessage('چرخش صفحات PDF انجام شد.')
+          break
+        }
+        case 'image-compress': {
+          const out = await processImage(first, { format, quality: quality / 100, maxWidth })
+          const ext = format === 'image/jpeg' ? 'jpg' : format === 'image/png' ? 'png' : 'webp'
+          downloadBlob(out, first.name.replace(/\.[^.]+$/, '') + '-filelab.' + ext)
+          const saved = Math.round((1 - out.size / first.size) * 100)
+          showMessage(saved >= 0 ? 'حجم خروجی ' + saved + '٪ کمتر است.' : 'خروجی آماده شد؛ حجم آن ' + Math.abs(saved) + '٪ بیشتر شده است.')
+          break
+        }
+        case 'image-pdf': {
+          const out = await imagesToPdf(files); downloadBlob(out, 'filelab-images.pdf', 'application/pdf')
+          showMessage('تصاویر به PDF تبدیل شدند.')
+          break
+        }
+        case 'docx-text': {
+          const text = await docxToText(first); downloadBlob(new Blob([text], { type: 'text/plain;charset=utf-8' }), first.name.replace(/\.docx$/i, '') + '.txt')
+          showMessage('متن سند استخراج شد.')
+          break
+        }
+        case 'txt-docx': {
+          const out = await textToDocx(first); downloadBlob(out, first.name.replace(/\.txt$/i, '') + '.docx')
+          showMessage('سند Word ساخته شد.')
+          break
+        }
+        case 'xlsx-csv': {
+          const out = await xlsxToCsvZip(first); downloadBlob(out, first.name.replace(/\.xlsx$/i, '') + '-csv.zip', 'application/zip')
+          showMessage('برگه‌های Excel به CSV تبدیل و در ZIP بسته‌بندی شدند.')
+          break
+        }
+        case 'csv-xlsx': {
+          const out = await csvToXlsx(first); downloadBlob(out, first.name.replace(/\.csv$/i, '') + '.xlsx')
+          showMessage('فایل Excel ساخته شد.')
+          break
+        }
+        case 'zip-extract': {
+          const entries = extractZip(new Uint8Array(await first.arrayBuffer())); downloadExtracted(entries)
+          showMessage(entries.length + ' فایل از آرشیو استخراج شد. مرورگر ممکن است برای دانلود چند فایل اجازه بخواهد.')
+          break
+        }
+        case 'zip-create': {
+          const out = await createZipFromFiles(files); downloadBlob(out, 'filelab-archive.zip', 'application/zip')
+          showMessage('آرشیو ZIP ساخته شد.')
+          break
+        }
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'پردازش فایل ناموفق بود.')
-    } finally {
-      setBusy(false)
-    }
+      showMessage(error instanceof Error ? error.message : 'پردازش فایل ناموفق بود.', true)
+    } finally { setBusy(false) }
   }
 
   const isEnglish = language === 'en'
@@ -129,7 +175,6 @@ function App() {
           <button className="header-cta" onClick={() => document.getElementById('tools')?.scrollIntoView({ behavior: 'smooth' })}>{isEnglish ? 'Explore tools' : 'مشاهده ابزارها'} <ArrowLeft size={16} /></button>
         </div>
       </header>
-
       <main>
         <section className="hero">
           <div className="hero-copy">
@@ -142,27 +187,26 @@ function App() {
             </div>
             <div className="hero-stats">
               <div><strong>06</strong><span>{isEnglish ? 'File categories' : 'دسته‌بندی فایل'}</span></div><i />
-              <div><strong>100%</strong><span>{isEnglish ? 'In-browser tools' : 'پردازش محلی ابزارهای فعال'}</span></div><i />
+              <div><strong>11</strong><span>{isEnglish ? 'Working tools' : 'ابزار فعال'}</span></div><i />
               <div><strong>0</strong><span>{isEnglish ? 'Uploads required' : 'آپلود اجباری'}</span></div>
             </div>
           </div>
           <div className="hero-visual">
             <div className="visual-glow" /><div className="orbit orbit-one" /><div className="orbit orbit-two" />
             <div className="file-stack">
-              <div className="stack-top"><div className="mini-brand"><span /> FILELAB / WORKSPACE</div><span className="live-dot">LIVE</span></div>
+              <div className="stack-top"><div className="mini-brand"><span /> FILELAB / WORKSPACE</div><span className="live-dot">LOCAL</span></div>
               <div className="stack-title">{isEnglish ? 'What are we working on?' : 'امروز روی چه فایلی کار می‌کنی؟'}</div>
               <div className="stack-files">
                 <div className="stack-file"><span className="file-type pdf">PDF</span><div><b>Project-brief.pdf</b><small>2.4 MB · 12 pages</small></div><Check size={16} /></div>
                 <div className="stack-file"><span className="file-type img">IMG</span><div><b>Product-shot.webp</b><small>840 KB · 2400 × 1600</small></div><Check size={16} /></div>
                 <div className="stack-file"><span className="file-type zip">ZIP</span><div><b>Assets-bundle.zip</b><small>18.2 MB · 24 files</small></div><ArrowDownToLine size={16} /></div>
               </div>
-              <div className="stack-progress"><div><span>{isEnglish ? 'Workspace ready' : 'فضای کار آماده است'}</span><b>03 / 03</b></div><span className="progress-track"><i /></span></div>
+              <div className="stack-progress"><div><span>{isEnglish ? 'Workspace ready' : 'فضای کار آماده است'}</span><b>11 TOOLS</b></div><span className="progress-track"><i /></span></div>
             </div>
             <div className="floating-chip chip-secure"><ShieldCheck size={15} /> {isEnglish ? 'Your files stay yours' : 'فایل‌ها نزد خودت می‌مانند'}</div>
-            <div className="floating-chip chip-fast"><Zap size={15} /> {isEnglish ? 'Fast processing' : 'پردازش سریع'}</div>
+            <div className="floating-chip chip-fast"><Zap size={15} /> {isEnglish ? 'Fast local processing' : 'پردازش محلی'}</div>
           </div>
         </section>
-
         <section className="tool-section" id="tools">
           <div className="section-heading">
             <div><div className="section-kicker">{isEnglish ? 'THE TOOLBOX' : 'جعبه ابزار'}</div><h2>{isEnglish ? 'What do you need to do?' : 'چه کاری می‌خواهی انجام بدهی؟'}</h2><p>{isEnglish ? 'Pick a category or search for a specific task.' : 'یک دسته را انتخاب کن یا مستقیم دنبال ابزار موردنظرت بگرد.'}</p></div>
@@ -172,38 +216,38 @@ function App() {
             <aside className="category-list">
               <span className="category-caption">{isEnglish ? 'CATEGORIES' : 'دسته‌بندی‌ها'}</span>
               {categories.map(item => { const Icon = item.icon; return <button key={item.id} className={category === item.id ? 'category active' : 'category'} onClick={() => setCategory(item.id)}><Icon size={17} /><span>{isEnglish ? item.en : item.label}</span><small>{item.id === 'all' ? tools.length : tools.filter(tool => tool.category === item.id).length}</small></button> })}
-              <div className="sidebar-note"><Sparkles size={16} /><b>{isEnglish ? 'More tools are coming' : 'ابزارهای بیشتری در راه‌اند'}</b><p>{isEnglish ? 'We are adding new workflows step by step.' : 'قابلیت‌های جدید به‌مرور به FileLab اضافه می‌شوند.'}</p></div>
+              <div className="sidebar-note"><Sparkles size={16} /><b>{isEnglish ? 'Video engine in progress' : 'موتور ویدئو در دست توسعه است'}</b><p>{isEnglish ? 'Video processing needs a separate WebAssembly engine.' : 'پردازش ویدئو به موتور مستقل و حجیم WebAssembly نیاز دارد.'}</p></div>
             </aside>
             <div className="tools-content">
               {selectedTool ? (
                 <div className="workspace">
                   <button className="back-link" onClick={() => { setSelectedTool(null); setFiles([]); setMessage('') }}><ArrowRight size={16} /> {isEnglish ? 'Back to tools' : 'بازگشت به ابزارها'}</button>
-                  <div className="workspace-title">{(() => { const Icon = selectedTool.icon; return <span className="workspace-icon"><Icon size={22} /></span> })()}<div><h3>{selectedTool.title}</h3><p>{selectedTool.description}</p></div></div>
+                  <div className="workspace-title"><span className="workspace-icon"><selectedTool.icon size={22} /></span><div><h3>{selectedTool.title}</h3><p>{selectedTool.description}</p></div></div>
                   <div className="dropzone" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files) }} onClick={() => inputRef.current?.click()}>
-                    <input ref={inputRef} type="file" hidden multiple={selectedTool.id === 'merge-pdf'} accept={accepts[selectedTool.id] || '*/*'} onChange={e => handleFiles(e.target.files || [])} />
+                    <input ref={inputRef} type="file" hidden multiple={!!selectedTool.multiple} accept={selectedTool.accept || '*/*'} onChange={e => { handleFiles(e.target.files || []); e.currentTarget.value = '' }} />
                     <span className="upload-icon"><UploadCloud size={25} /></span><b>{isEnglish ? 'Drop files here or browse' : 'فایل‌ها را اینجا رها کن یا انتخاب کن'}</b>
-                    <small>{selectedTool.id === 'merge-pdf' ? 'PDF · حداقل ۲ فایل' : selectedTool.id === 'zip-extract' ? 'ZIP · یک فایل' : 'JPG · PNG · WEBP'}</small>
+                    <small>{selectedTool.formats} · حداکثر ۱۰۰ مگابایت برای هر فایل</small>
                     <button className="browse-button" type="button" onClick={e => { e.stopPropagation(); inputRef.current?.click() }}><FolderOpen size={15} /> {isEnglish ? 'Choose files' : 'انتخاب فایل'}</button>
                   </div>
                   {files.length > 0 && <div className="selected-files"><div className="selected-head"><b>{isEnglish ? 'Selected files' : 'فایل‌های انتخاب‌شده'}</b><button onClick={() => setFiles([])}><X size={14} /> {isEnglish ? 'Clear' : 'پاک‌کردن'}</button></div>{files.map((file, index) => <div className="selected-file" key={file.name + index}><FileText size={17} /><span>{file.name}</span><small>{(file.size / 1024 / 1024).toFixed(2)} MB</small></div>)}</div>}
-                  {selectedTool.category === 'image' && <div className="options-panel"><label>{isEnglish ? 'Output format' : 'فرمت خروجی'}<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>{isEnglish ? 'Quality' : 'کیفیت'} <b>{quality}%</b><input type="range" min="30" max="100" value={quality} onChange={e => setQuality(Number(e.target.value))} /></label><label>{isEnglish ? 'Max width' : 'حداکثر عرض'}<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
-                  {message && <div className={message.includes('ناموفق') || message.includes('فقط') || message.includes('حداقل') ? 'result-message error' : 'result-message'}><Check size={16} />{message}</div>}
+                  {selectedTool.id === 'image-compress' && <div className="options-panel"><label>فرمت خروجی<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>کیفیت <b>{quality}%</b><input type="range" min="30" max="100" value={quality} onChange={e => setQuality(Number(e.target.value))} /></label><label>حداکثر عرض<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
+                  {selectedTool.id === 'extract-pdf' && <div className="options-panel single-option"><label>شماره صفحات (مثال: 1-3,5)<input value={pageRange} onChange={e => setPageRange(e.target.value)} placeholder="1-3,5" /></label></div>}
+                  {selectedTool.id === 'rotate-pdf' && <div className="options-panel single-option"><label>میزان چرخش<select value={rotation} onChange={e => setRotation(Number(e.target.value) as typeof rotation)}><option value="90">۹۰ درجه</option><option value="180">۱۸۰ درجه</option><option value="270">۲۷۰ درجه</option></select></label></div>}
+                  {message && <div role="status" className={messageError ? 'result-message error' : 'result-message'}>{messageError ? <X size={16} /> : <Check size={16} />}{message}</div>}
                   <button className="primary-button run-button" disabled={!files.length || busy} onClick={runTool}>{busy ? <><span className="spinner" /> {isEnglish ? 'Processing...' : 'در حال پردازش...'}</> : <>{isEnglish ? 'Process files' : 'پردازش فایل'} <ArrowLeft size={17} /></>}</button>
-                  <p className="local-note"><LockKeyhole size={14} /> {isEnglish ? 'Files are processed in your browser and are not uploaded.' : 'فایل‌ها داخل مرورگر پردازش می‌شوند و به سرور آپلود نمی‌شوند.'}</p>
+                  <p className="local-note"><LockKeyhole size={14} /> {isEnglish ? 'Files are processed locally in your browser.' : 'فایل‌ها داخل مرورگر پردازش می‌شوند و به سرور آپلود نمی‌شوند.'}</p>
                 </div>
               ) : (
                 <>
-                  <div className="tools-grid">{filteredTools.map(tool => { const Icon = tool.icon; return <button key={tool.id} className={tool.status === 'soon' ? 'tool-card disabled' : 'tool-card'} onClick={() => chooseTool(tool)}><div className="tool-card-top"><span className={'tool-icon ' + tool.category}><Icon size={20} /></span>{tool.status === 'ready' ? <span className="ready-label"><span /> {isEnglish ? 'Available' : 'فعال'}</span> : <span className="soon-label">{isEnglish ? 'Coming soon' : 'به‌زودی'}</span>}</div><h3>{tool.title}</h3><p>{tool.description}</p><div className="tool-card-bottom"><small>{tool.formats}</small>{tool.status === 'ready' && <ArrowLeft size={16} />}</div></button> })}</div>
+                  <div className="tools-grid">{filteredTools.map(tool => { const Icon = tool.icon; return <button key={tool.id} className={tool.status === 'soon' ? 'tool-card disabled' : 'tool-card'} onClick={() => chooseTool(tool)}><div className="tool-card-top"><span className={'tool-icon ' + tool.category}><Icon size={20} /></span>{tool.status === 'ready' ? <span className="ready-label"><span /> {isEnglish ? 'Available' : 'فعال'}</span> : <span className="soon-label">{isEnglish ? 'Coming soon' : 'به‌زودی'}</span>}</div><h3>{isEnglish ? tool.id.replace(/-/g, ' ') : tool.title}</h3><p>{isEnglish ? tool.description : tool.description}</p><div className="tool-card-bottom"><small>{tool.formats}</small>{tool.status === 'ready' && <ArrowLeft size={16} />}</div></button> })}</div>
                   {filteredTools.length === 0 && <div className="empty-state"><Search size={25} /><b>{isEnglish ? 'No tools found' : 'ابزاری پیدا نشد'}</b><span>{isEnglish ? 'Try another keyword.' : 'عبارت دیگری را جست‌وجو کن.'}</span></div>}
                 </>
               )}
             </div>
           </div>
         </section>
-
         <section className="how-section" id="how"><div className="section-kicker">{isEnglish ? 'SIMPLE BY DESIGN' : 'ساده از ابتدا'}</div><h2>{isEnglish ? 'Three steps. No friction.' : 'سه قدم؛ بدون پیچیدگی.'}</h2><div className="steps"><div><span>01</span><UploadCloud size={22} /><b>{isEnglish ? 'Choose your files' : 'فایل را انتخاب کن'}</b><p>{isEnglish ? 'Select one or more files from your device.' : 'یک یا چند فایل را از دستگاهت انتخاب کن.'}</p></div><div><span>02</span><Sparkles size={22} /><b>{isEnglish ? 'Run your tool' : 'ابزار را اجرا کن'}</b><p>{isEnglish ? 'Choose settings and process your files.' : 'تنظیمات را مشخص کن و پردازش را انجام بده.'}</p></div><div><span>03</span><ArrowDownToLine size={22} /><b>{isEnglish ? 'Download the result' : 'خروجی را دریافت کن'}</b><p>{isEnglish ? 'Your processed file is ready to save.' : 'فایل پردازش‌شده آماده ذخیره است.'}</p></div></div></section>
-
-        <section className="privacy-section" id="privacy"><div className="privacy-icon"><ShieldCheck size={26} /></div><div><div className="section-kicker">{isEnglish ? 'PRIVACY FIRST' : 'حریم خصوصی در اولویت'}</div><h2>{isEnglish ? 'Your files stay on your device.' : 'فایل‌هایت روی دستگاه خودت می‌مانند.'}</h2><p>{isEnglish ? 'Available tools run locally in your browser. No account or upload is needed for these operations.' : 'ابزارهای فعال مستقیماً در مرورگر اجرا می‌شوند. برای این عملیات‌ها نیازی به حساب کاربری یا آپلود فایل نیست.'}</p></div><div className="privacy-points"><span><Check size={15} /> {isEnglish ? 'Local processing' : 'پردازش محلی'}</span><span><Check size={15} /> {isEnglish ? 'No forced upload' : 'بدون آپلود اجباری'}</span><span><Check size={15} /> {isEnglish ? 'No account required' : 'بدون نیاز به حساب'}</span></div></section>
+        <section className="privacy-section" id="privacy"><div className="privacy-icon"><ShieldCheck size={26} /></div><div><div className="section-kicker">{isEnglish ? 'PRIVACY FIRST' : 'حریم خصوصی در اولویت'}</div><h2>{isEnglish ? 'Your files stay on your device.' : 'فایل‌هایت روی دستگاه خودت می‌مانند.'}</h2><p>{isEnglish ? 'Available tools run locally in your browser. No account or upload is needed.' : 'ابزارهای فعال مستقیماً در مرورگر اجرا می‌شوند. برای این عملیات‌ها نیازی به حساب کاربری یا آپلود فایل نیست.'}</p></div><div className="privacy-points"><span><Check size={15} /> {isEnglish ? 'Local processing' : 'پردازش محلی'}</span><span><Check size={15} /> {isEnglish ? 'No forced upload' : 'بدون آپلود اجباری'}</span><span><Check size={15} /> {isEnglish ? 'No account required' : 'بدون نیاز به حساب'}</span></div></section>
       </main>
       <footer><a className="brand footer-brand" href="#"><span className="brand-mark"><Layers3 size={19} /></span><span>File<span className="brand-light">Lab</span></span></a><span>{isEnglish ? 'Built for the files that move your work forward.' : 'برای فایل‌هایی که کارهایت را جلو می‌برند.'}</span><small>© 2026 FILELAB</small></footer>
     </div>
