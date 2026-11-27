@@ -27,7 +27,7 @@ describe('PDF processors', () => {
 
   it('rotates every page by the requested amount', async () => {
     const source = await PDFDocument.create(); source.addPage()
-    const file = new File([await source.save()], 'source.pdf', { type: 'application/pdf' })
+    const file = new File([new Uint8Array(await source.save()).buffer as ArrayBuffer], 'source.pdf', { type: 'application/pdf' })
     const rotated = await PDFDocument.load(await rotatePdf(file, 90))
     expect(rotated.getPage(0).getRotation().angle).toBe(90)
   })

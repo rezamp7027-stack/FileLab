@@ -181,7 +181,8 @@ export async function xlsxToCsvZip(file: File): Promise<Uint8Array> {
   for (const sheet of workbook.worksheets) {
     const rows: unknown[][] = []
     sheet.eachRow({ includeEmpty: false }, row => {
-      rows.push(row.values.slice(1).map(value => {
+      const values = Array.from({ length: row.cellCount }, (_, index) => row.getCell(index + 1).value)
+      rows.push(values.map(value => {
         if (value && typeof value === 'object' && 'text' in value) return String((value as { text: unknown }).text)
         if (value instanceof Date) return value.toISOString()
         return value == null ? '' : String(value)
