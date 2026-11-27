@@ -1,5 +1,5 @@
 import { PDFDocument } from 'pdf-lib'
-import { unzipSync, zipSync } from 'fflate'
+import { unzipSync, zipSync, strToU8 } from 'fflate'
 
 export type ImageOptions = {
   format: 'image/jpeg' | 'image/png' | 'image/webp'
@@ -14,14 +14,15 @@ export async function processImage(file: File, options: ImageOptions): Promise<B
   canvas.width = Math.max(1, Math.round(bitmap.width * scale))
   canvas.height = Math.max(1, Math.round(bitmap.height * scale))
   const context = canvas.getContext('2d')
-  if (!context) {
-    bitmap.close()
-    throw new Error('مرورگر امکان پردازش تصویر را فراهم نکرد.')
-  }
+  if (!context) throw new Error('مرورگر امکان پردازش تصویر را فراهم نکرد.')
   context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
   bitmap.close()
   return new Promise((resolve, reject) => {
-    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('ساخت خروجی تصویر ناموفق بود.')), options.format, options.quality)
+    canvas.toBlob(
+      blob => blob ? resolve(blob) : reject(new Error('ساخت خروجی تصویر ناموفق بود.')),
+      options.format,
+      options.quality,
+    )
   })
 }
 
@@ -48,8 +49,12 @@ export function extractZip(fileBytes: Uint8Array): Uint8Array {
   return zipSync(output, { level: 6 })
 }
 
+export function makeTextFile(text: string): Blob {
+  return new Blob([strToU8(text)], { type: 'text/plain;charset=utf-8' })
+}
+
 export function downloadBlob(blob: Blob | Uint8Array, filename: string, mime = 'application/octet-stream') {
-  const output = blob instanceof Blob ? blob : new Blob([new Uint8Array(blob).buffer as ArrayBuffer], { type: mime })
+  const output = blob instanceof Blob ? blob : new Blob([blob], { type: mime })
   const url = URL.createObjectURL(output)
   const anchor = document.createElement('a')
   anchor.href = url

@@ -97,7 +97,7 @@ function App() {
         const name = file.name.replace(/\.[^.]+$/, '') + '-filelab.' + extension
         downloadBlob(blob, name)
         const saved = Math.max(0, Math.round((1 - blob.size / file.size) * 100))
-        setMessage(\`خروجی آماده شد. تغییر حجم: \${saved}%\`)
+        setMessage('خروجی آماده شد. تغییر حجم: ' + saved + '%')
       } else if (selectedTool.id === 'zip-extract') {
         const result = extractZip(new Uint8Array(await files[0].arrayBuffer()))
         downloadBlob(result, files[0].name.replace(/\.zip$/i, '') + '-extracted.zip', 'application/zip')
