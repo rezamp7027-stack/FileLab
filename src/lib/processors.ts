@@ -101,11 +101,59 @@ export async function imagesToPdf(files: File[]): Promise<Uint8Array> {
   return pdf.save()
 }
 
+function preflightZip(bytes: Uint8Array) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  const minEocd = Math.max(0, bytes.length - 22 - 65535)
+  let eocd = -1
+  for (let offset = bytes.length - 22; offset >= minEocd; offset--) {
+    if (view.getUint32(offset, true) === 0x06054b50) { eocd = offset; break }
+  }
+  if (eocd < 0) throw new Error('ساختار فایل ZIP معتبر نیست.')
+  const diskNumber = view.getUint16(eocd + 4, true)
+  const centralDisk = view.getUint16(eocd + 6, true)
+  const entriesOnDisk = view.getUint16(eocd + 8, true)
+  const entryCount = view.getUint16(eocd + 10, true)
+  const centralSize = view.getUint32(eocd + 12, true)
+  const centralOffset = view.getUint32(eocd + 16, true)
+  if (diskNumber !== 0 || centralDisk !== 0 || entriesOnDisk !== entryCount) throw new Error('آرشیوهای چندبخشی پشتیبانی نمی‌شوند.')
+  if (entryCount === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) throw new Error('آرشیو ZIP64 در این نسخه پشتیبانی نمی‌شود.')
+  if (entryCount > MAX_ARCHIVE_ENTRIES) throw new Error('آرشیو بیش از ۵۰۰ فایل دارد.')
+  if (centralOffset + centralSize > eocd || centralOffset > bytes.length) throw new Error('فهرست داخلی ZIP خراب است.')
+  let cursor = centralOffset
+  let expandedSize = 0
+  const names: string[] = []
+  for (let index = 0; index < entryCount; index++) {
+    if (cursor + 46 > centralOffset + centralSize || view.getUint32(cursor, true) !== 0x02014b50) throw new Error('رکورد فایل در ZIP خراب است.')
+    const flags = view.getUint16(cursor + 8, true)
+    const compressedSize = view.getUint32(cursor + 20, true)
+    const uncompressedSize = view.getUint32(cursor + 24, true)
+    const nameLength = view.getUint16(cursor + 28, true)
+    const extraLength = view.getUint16(cursor + 30, true)
+    const commentLength = view.getUint16(cursor + 32, true)
+    const externalAttributes = view.getUint32(cursor + 38, true)
+    const recordEnd = cursor + 46 + nameLength + extraLength + commentLength
+    if (recordEnd > centralOffset + centralSize) throw new Error('نام یا اطلاعات فایل در ZIP ناقص است.')
+    if (flags & 1) throw new Error('فایل‌های ZIP رمزگذاری‌شده پشتیبانی نمی‌شوند.')
+    if (uncompressedSize === 0xffffffff || compressedSize === 0xffffffff) throw new Error('ورودی ZIP64 پشتیبانی نمی‌شود.')
+    expandedSize += uncompressedSize
+    if (expandedSize > MAX_ARCHIVE_OUTPUT_BYTES) throw new Error('حجم فایل‌های استخراج‌شده بیش از ۲۵۰ مگابایت است.')
+    if (compressedSize > 0 && uncompressedSize / compressedSize > 1000) throw new Error('نسبت فشرده‌سازی آرشیو غیرعادی است و برای امنیت متوقف شد.')
+    const nameBytes = bytes.subarray(cursor + 46, cursor + 46 + nameLength)
+    const name = new TextDecoder(flags & 0x800 ? 'utf-8' : 'utf-8', { fatal: false }).decode(nameBytes).replace(/\\/g, '/')
+    const parts = name.split('/')
+    const unixMode = externalAttributes >>> 16
+    const isSymlink = (unixMode & 0xf000) === 0xa000
+    if (!isSymlink && !name.startsWith('/') && !/^[a-z]:/i.test(name) && !parts.some(part => part === '..' || part === '.')) names.push(name)
+    cursor = recordEnd
+  }
+  return names
+}
+
 export function extractZip(fileBytes: Uint8Array): ExtractedEntry[] {
   if (fileBytes.byteLength > MAX_FILE_BYTES) throw new Error('حجم ZIP بیش از ۱۰۰ مگابایت است.')
+  const safeNames = new Set(preflightZip(fileBytes))
   const entries = unzipSync(fileBytes)
   const output: ExtractedEntry[] = []
-  let totalBytes = 0
   for (const [rawName, data] of Object.entries(entries)) {
     if (rawName.endsWith('/')) continue
     const normalized = rawName.replace(/\\/g, '/')
@@ -113,16 +161,13 @@ export function extractZip(fileBytes: Uint8Array): ExtractedEntry[] {
     const parts = normalized.split('/')
     if (parts.some(part => part === '..' || part === '.')) continue
     const name = parts.filter(Boolean).join('/')
-    if (!name) continue
-    totalBytes += data.byteLength
-    if (output.length >= MAX_ARCHIVE_ENTRIES) throw new Error('آرشیو بیش از ۵۰۰ فایل دارد.')
-    if (totalBytes > MAX_ARCHIVE_OUTPUT_BYTES) throw new Error('حجم فایل‌های استخراج‌شده بیش از ۲۵۰ مگابایت است.')
+    if (!name || !safeNames.has(rawName.replace(/\\/g, '/'))) continue
     output.push({ name, data })
   }
+  if (output.length > MAX_ARCHIVE_ENTRIES) throw new Error('آرشیو بیش از ۵۰۰ فایل دارد.')
   if (!output.length) throw new Error('فایل ZIP خالی یا فاقد فایل قابل استخراج است.')
   return output
 }
-
 function uniqueArchiveName(name: string, used: Set<string>): string {
   const dot = name.lastIndexOf('.')
   const base = dot > 0 ? name.slice(0, dot) : name
