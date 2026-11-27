@@ -1,9 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import {
-  Archive, ArrowDownToLine, ArrowLeft, ArrowRight, Check, ChevronDown, CircleHelp,
-  FileImage, FileSpreadsheet, FileText, Film, FolderOpen, Globe2, HardDrive,
-  Layers3, LockKeyhole, Menu, Moon, Search, ShieldCheck, Sparkles, UploadCloud, X,
-  Zap,
+  Archive, ArrowDownToLine, ArrowLeft, ArrowRight, Check, FileImage, FileSpreadsheet,
+  FileText, Film, FolderOpen, Globe2, Layers3, LockKeyhole, Menu, Search, ShieldCheck,
+  Sparkles, UploadCloud, X, Zap,
 } from 'lucide-react'
 import { downloadBlob, extractZip, mergePdfs, processImage } from './lib/processors'
 
@@ -98,7 +97,7 @@ function App() {
         const name = file.name.replace(/\.[^.]+$/, '') + '-filelab.' + extension
         downloadBlob(blob, name)
         const saved = Math.max(0, Math.round((1 - blob.size / file.size) * 100))
-        setMessage(`خروجی آماده شد. تغییر حجم: ${saved}%`)
+        setMessage(\`خروجی آماده شد. تغییر حجم: \${saved}%\`)
       } else if (selectedTool.id === 'zip-extract') {
         const result = extractZip(new Uint8Array(await files[0].arrayBuffer()))
         downloadBlob(result, files[0].name.replace(/\.zip$/i, '') + '-extracted.zip', 'application/zip')
@@ -142,16 +141,13 @@ function App() {
               <div className="trust-note"><ShieldCheck size={17} /><span>{isEnglish ? 'Private by design' : 'پردازش محلی و خصوصی'}</span></div>
             </div>
             <div className="hero-stats">
-              <div><strong>06</strong><span>{isEnglish ? 'File categories' : 'دسته‌بندی فایل'}</span></div>
-              <i />
-              <div><strong>100%</strong><span>{isEnglish ? 'In-browser tools' : 'پردازش محلی ابزارهای فعال'}</span></div>
-              <i />
+              <div><strong>06</strong><span>{isEnglish ? 'File categories' : 'دسته‌بندی فایل'}</span></div><i />
+              <div><strong>100%</strong><span>{isEnglish ? 'In-browser tools' : 'پردازش محلی ابزارهای فعال'}</span></div><i />
               <div><strong>0</strong><span>{isEnglish ? 'Uploads required' : 'آپلود اجباری'}</span></div>
             </div>
           </div>
           <div className="hero-visual">
-            <div className="visual-glow" />
-            <div className="orbit orbit-one" /><div className="orbit orbit-two" />
+            <div className="visual-glow" /><div className="orbit orbit-one" /><div className="orbit orbit-two" />
             <div className="file-stack">
               <div className="stack-top"><div className="mini-brand"><span /> FILELAB / WORKSPACE</div><span className="live-dot">LIVE</span></div>
               <div className="stack-title">{isEnglish ? 'What are we working on?' : 'امروز روی چه فایلی کار می‌کنی؟'}</div>
@@ -182,25 +178,22 @@ function App() {
               {selectedTool ? (
                 <div className="workspace">
                   <button className="back-link" onClick={() => { setSelectedTool(null); setFiles([]); setMessage('') }}><ArrowRight size={16} /> {isEnglish ? 'Back to tools' : 'بازگشت به ابزارها'}</button>
-                  <div className="workspace-title"><span className="workspace-icon"><selectedTool.icon size={22} /></span><div><h3>{selectedTool.title}</h3><p>{selectedTool.description}</p></div></div>
+                  <div className="workspace-title">{(() => { const Icon = selectedTool.icon; return <span className="workspace-icon"><Icon size={22} /></span> })()}<div><h3>{selectedTool.title}</h3><p>{selectedTool.description}</p></div></div>
                   <div className="dropzone" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files) }} onClick={() => inputRef.current?.click()}>
                     <input ref={inputRef} type="file" hidden multiple={selectedTool.id === 'merge-pdf'} accept={accepts[selectedTool.id] || '*/*'} onChange={e => handleFiles(e.target.files || [])} />
-                    <span className="upload-icon"><UploadCloud size={25} /></span>
-                    <b>{isEnglish ? 'Drop files here or browse' : 'فایل‌ها را اینجا رها کن یا انتخاب کن'}</b>
+                    <span className="upload-icon"><UploadCloud size={25} /></span><b>{isEnglish ? 'Drop files here or browse' : 'فایل‌ها را اینجا رها کن یا انتخاب کن'}</b>
                     <small>{selectedTool.id === 'merge-pdf' ? 'PDF · حداقل ۲ فایل' : selectedTool.id === 'zip-extract' ? 'ZIP · یک فایل' : 'JPG · PNG · WEBP'}</small>
                     <button className="browse-button" type="button" onClick={e => { e.stopPropagation(); inputRef.current?.click() }}><FolderOpen size={15} /> {isEnglish ? 'Choose files' : 'انتخاب فایل'}</button>
                   </div>
                   {files.length > 0 && <div className="selected-files"><div className="selected-head"><b>{isEnglish ? 'Selected files' : 'فایل‌های انتخاب‌شده'}</b><button onClick={() => setFiles([])}><X size={14} /> {isEnglish ? 'Clear' : 'پاک‌کردن'}</button></div>{files.map((file, index) => <div className="selected-file" key={file.name + index}><FileText size={17} /><span>{file.name}</span><small>{(file.size / 1024 / 1024).toFixed(2)} MB</small></div>)}</div>}
-                  {(selectedTool.category === 'image') && <div className="options-panel"><label>{isEnglish ? 'Output format' : 'فرمت خروجی'}<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>{isEnglish ? 'Quality' : 'کیفیت'} <b>{quality}%</b><input type="range" min="30" max="100" value={quality} onChange={e => setQuality(Number(e.target.value))} /></label><label>{isEnglish ? 'Max width' : 'حداکثر عرض'}<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
+                  {selectedTool.category === 'image' && <div className="options-panel"><label>{isEnglish ? 'Output format' : 'فرمت خروجی'}<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>{isEnglish ? 'Quality' : 'کیفیت'} <b>{quality}%</b><input type="range" min="30" max="100" value={quality} onChange={e => setQuality(Number(e.target.value))} /></label><label>{isEnglish ? 'Max width' : 'حداکثر عرض'}<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
                   {message && <div className={message.includes('ناموفق') || message.includes('فقط') || message.includes('حداقل') ? 'result-message error' : 'result-message'}><Check size={16} />{message}</div>}
                   <button className="primary-button run-button" disabled={!files.length || busy} onClick={runTool}>{busy ? <><span className="spinner" /> {isEnglish ? 'Processing...' : 'در حال پردازش...'}</> : <>{isEnglish ? 'Process files' : 'پردازش فایل'} <ArrowLeft size={17} /></>}</button>
                   <p className="local-note"><LockKeyhole size={14} /> {isEnglish ? 'Files are processed in your browser and are not uploaded.' : 'فایل‌ها داخل مرورگر پردازش می‌شوند و به سرور آپلود نمی‌شوند.'}</p>
                 </div>
               ) : (
                 <>
-                  <div className="tools-grid">
-                    {filteredTools.map(tool => { const Icon = tool.icon; return <button key={tool.id} className={tool.status === 'soon' ? 'tool-card disabled' : 'tool-card'} onClick={() => chooseTool(tool)}><div className="tool-card-top"><span className={'tool-icon ' + tool.category}><Icon size={20} /></span>{tool.status === 'ready' ? <span className="ready-label"><span /> {isEnglish ? 'Available' : 'فعال'}</span> : <span className="soon-label">{isEnglish ? 'Coming soon' : 'به‌زودی'}</span>}</div><h3>{isEnglish ? tool.title : tool.title}</h3><p>{tool.description}</p><div className="tool-card-bottom"><small>{tool.formats}</small>{tool.status === 'ready' && <ArrowLeft size={16} />}</div></button> }) }
-                  </div>
+                  <div className="tools-grid">{filteredTools.map(tool => { const Icon = tool.icon; return <button key={tool.id} className={tool.status === 'soon' ? 'tool-card disabled' : 'tool-card'} onClick={() => chooseTool(tool)}><div className="tool-card-top"><span className={'tool-icon ' + tool.category}><Icon size={20} /></span>{tool.status === 'ready' ? <span className="ready-label"><span /> {isEnglish ? 'Available' : 'فعال'}</span> : <span className="soon-label">{isEnglish ? 'Coming soon' : 'به‌زودی'}</span>}</div><h3>{tool.title}</h3><p>{tool.description}</p><div className="tool-card-bottom"><small>{tool.formats}</small>{tool.status === 'ready' && <ArrowLeft size={16} />}</div></button> })}</div>
                   {filteredTools.length === 0 && <div className="empty-state"><Search size={25} /><b>{isEnglish ? 'No tools found' : 'ابزاری پیدا نشد'}</b><span>{isEnglish ? 'Try another keyword.' : 'عبارت دیگری را جست‌وجو کن.'}</span></div>}
                 </>
               )}
@@ -216,5 +209,4 @@ function App() {
     </div>
   )
 }
-
 export default App
