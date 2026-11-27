@@ -153,7 +153,7 @@ function preflightZip(bytes: Uint8Array) {
 export function extractZip(fileBytes: Uint8Array): ExtractedEntry[] {
   if (fileBytes.byteLength > MAX_FILE_BYTES) throw new Error('حجم ZIP بیش از ۱۰۰ مگابایت است.')
   const safeNames = new Set(preflightZip(fileBytes))
-  const entries = unzipSync(fileBytes)
+  const entries = unzipSync(fileBytes, { filter: file => safeNames.has(file.name.replace(/\\/g, '/')) })
   const output: ExtractedEntry[] = []
   for (const [rawName, data] of Object.entries(entries)) {
     if (rawName.endsWith('/')) continue
