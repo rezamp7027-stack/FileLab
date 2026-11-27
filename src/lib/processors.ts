@@ -200,7 +200,7 @@ export async function createZipFromFiles(files: File[]): Promise<Uint8Array> {
 export async function docxToText(file: File): Promise<string> {
   assertFileSize(file)
   if (!file.name.toLowerCase().endsWith('.docx')) throw new Error('فقط فایل DOCX پشتیبانی می‌شود.')
-  const mammoth = (await import('mammoth')).default
+  const mammoth = (await import('mammoth/mammoth.browser')).default
   const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
   return result.value.trim() || 'متنی در سند پیدا نشد.'
 }
