@@ -168,6 +168,10 @@ export function extractZip(fileBytes: Uint8Array): ExtractedEntry[] {
   if (!output.length) throw new Error('فایل ZIP خالی یا فاقد فایل قابل استخراج است.')
   return output
 }
+function setZipEntry(entries: Record<string, Uint8Array>, name: string, data: Uint8Array) {
+  Object.defineProperty(entries, name, { value: data, enumerable: true, configurable: true, writable: true })
+}
+
 function uniqueArchiveName(name: string, used: Set<string>): string {
   const dot = name.lastIndexOf('.')
   const base = dot > 0 ? name.slice(0, dot) : name
@@ -182,7 +186,7 @@ function uniqueArchiveName(name: string, used: Set<string>): string {
 export async function createZipFromFiles(files: File[]): Promise<Uint8Array> {
   if (!files.length) throw new Error('برای ساخت ZIP حداقل یک فایل انتخاب کن.')
   if (files.length > MAX_ARCHIVE_ENTRIES) throw new Error('حداکثر ۵۰۰ فایل در هر ZIP مجاز است.')
-  const entries = Object.create(null) as Record<string, Uint8Array>
+  const entries: Record<string, Uint8Array> = {}
   let total = 0
   const used = new Set<string>()
   for (const file of files) {
@@ -192,7 +196,7 @@ export async function createZipFromFiles(files: File[]): Promise<Uint8Array> {
     const name = uniqueArchiveName(rawName, used)
     total += file.size
     if (total > MAX_ARCHIVE_OUTPUT_BYTES) throw new Error('حجم مجموع فایل‌ها از ۲۵۰ مگابایت بیشتر است.')
-    entries[name] = new Uint8Array(await file.arrayBuffer())
+    setZipEntry(entries, name, new Uint8Array(await file.arrayBuffer()))
   }
   return zipSync(entries, { level: 6 })
 }
@@ -234,7 +238,7 @@ export async function xlsxToCsvZip(file: File): Promise<Uint8Array> {
       }))
     })
     const csv = Papa.unparse(rows, { newline: '\r\n' })
-    entries[(sheet.name || 'sheet').replace(/[^\p{L}\p{N}_-]/gu, '_') + '.csv'] = strToU8('\uFEFF' + csv)
+    setZipEntry(entries, (sheet.name || 'sheet').replace(/[^\p{L}\p{N}_-]/gu, '_') + '.csv', strToU8('\uFEFF' + csv))
   }
   if (!Object.keys(entries).length) throw new Error('هیچ برگه‌ای در فایل Excel پیدا نشد.')
   return zipSync(entries, { level: 6 })
