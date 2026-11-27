@@ -82,7 +82,7 @@ describe('Document and spreadsheet processors', () => {
   })
 
   it('converts TXT to DOCX and preserves its text on re-read', async () => {
-    const textFile = makeFile('notes.txt', 'First line\\nSecond line', 'text/plain')
+    const textFile = makeFile('notes.txt', 'First line\nSecond line', 'text/plain')
     const docx = await textToDocx(textFile)
     const docxFile = new File([await docx.arrayBuffer()], 'notes.docx')
     const extracted = await docxToText(docxFile)
