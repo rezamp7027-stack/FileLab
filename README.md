@@ -36,6 +36,10 @@ npm install
 npm run dev
 ```
 
+## Continuous integration
+
+GitHub Actions runs the production build on pushes to `main` and pull requests.
+
 ## Quality checks
 
 ```bash
