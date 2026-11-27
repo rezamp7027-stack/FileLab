@@ -9,12 +9,13 @@ A bilingual Persian/English, local-first file workspace built with React, TypeSc
 - **Documents:** extract plain text from DOCX; create a basic DOCX from TXT.
 - **Spreadsheets:** convert XLSX worksheets to CSV files (delivered as a ZIP); convert CSV to XLSX.
 - **Archives:** create ZIP archives and extract ZIP entries as individual downloads.
-
-Video processing is intentionally marked as coming soon. A robust FFmpeg WebAssembly engine needs a separately loaded, large runtime and device-memory safeguards; the UI does not pretend this is already available.
+- **Video:** transcode supported video inputs to MP4 with FFmpeg WebAssembly; maximum input size is 50 MB.
 
 ## Privacy and limits
 
-All current file operations run in the browser. Files are not sent to a FileLab server. Each input file is limited to 100 MB; ZIP extraction is capped at 500 entries and 250 MB total expanded size. Browser download policies may ask permission when extracting multiple files.
+All file operations run in the browser. Files are not sent to a FileLab server. Each ordinary input file is limited to 100 MB; video inputs are limited to 50 MB. ZIP extraction is capped at 500 entries and 250 MB total expanded size. Browser download policies may ask permission when extracting multiple files.
+
+Video processing downloads the FFmpeg WebAssembly core (about 30 MB) on first use from jsDelivr. This requires an internet connection for that first run and adequate device memory/CPU. Progress is approximate because FFmpeg's progress event is not reliable for every operation.
 
 DOCX text extraction preserves text, not the original layout. TXT-to-DOCX creates a simple paragraph-based document. XLSX-to-CSV exports each worksheet into a CSV file inside one ZIP.
 
@@ -26,6 +27,7 @@ DOCX text extraction preserves text, not the original layout. TXT-to-DOCX create
 - Mammoth and docx for basic DOCX workflows
 - ExcelJS and Papa Parse for spreadsheet workflows
 - fflate for ZIP archives
+- FFmpeg.wasm for video transcoding
 - Vitest for unit tests
 
 No server or credentials are required for the current client-only release. Never put Supabase service-role keys in frontend code.

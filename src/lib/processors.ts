@@ -1,9 +1,5 @@
 import { PDFDocument, degrees } from 'pdf-lib'
 import { unzipSync, zipSync, strToU8 } from 'fflate'
-import { Document, Packer, Paragraph, TextRun } from 'docx'
-import mammoth from 'mammoth'
-import ExcelJS from 'exceljs'
-import Papa from 'papaparse'
 
 export type ImageOptions = {
   format: 'image/jpeg' | 'image/png' | 'image/webp'
@@ -159,6 +155,7 @@ export async function createZipFromFiles(files: File[]): Promise<Uint8Array> {
 export async function docxToText(file: File): Promise<string> {
   assertFileSize(file)
   if (!file.name.toLowerCase().endsWith('.docx')) throw new Error('فقط فایل DOCX پشتیبانی می‌شود.')
+  const mammoth = (await import('mammoth')).default
   const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
   return result.value.trim() || 'متنی در سند پیدا نشد.'
 }
@@ -166,6 +163,7 @@ export async function docxToText(file: File): Promise<string> {
 export async function textToDocx(file: File): Promise<Blob> {
   assertFileSize(file)
   const text = await file.text()
+  const { Document, Packer, Paragraph, TextRun } = await import('docx')
   const paragraphs = text.replace(/\r\n/g, '\n').split('\n').map(line =>
     new Paragraph({ children: [new TextRun(line)] }),
   )
@@ -175,6 +173,8 @@ export async function textToDocx(file: File): Promise<Blob> {
 
 export async function xlsxToCsvZip(file: File): Promise<Uint8Array> {
   assertFileSize(file)
+  const ExcelJS = (await import('exceljs')).default
+  const Papa = (await import('papaparse')).default
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.load(await file.arrayBuffer())
   const entries: Record<string, Uint8Array> = {}
@@ -197,6 +197,8 @@ export async function xlsxToCsvZip(file: File): Promise<Uint8Array> {
 
 export async function csvToXlsx(file: File): Promise<Blob> {
   assertFileSize(file)
+  const Papa = (await import('papaparse')).default
+  const ExcelJS = (await import('exceljs')).default
   const parsed = Papa.parse<string[]>(await file.text(), { skipEmptyLines: 'greedy' })
   if (parsed.errors.length) throw new Error('خطا در خواندن CSV: ' + parsed.errors[0].message)
   const workbook = new ExcelJS.Workbook()
@@ -224,4 +226,73 @@ export function downloadExtracted(entries: ExtractedEntry[]) {
   entries.forEach((entry, index) => {
     window.setTimeout(() => downloadBlob(entry.data, entry.name), index * 350)
   })
+}
+
+type VideoOptions = { quality: number; maxWidth: number; onProgress?: (progress: number) => void }
+let ffmpegInstance: import('@ffmpeg/ffmpeg').FFmpeg | null = null
+let ffmpegLoadPromise: Promise<import('@ffmpeg/ffmpeg').FFmpeg> | null = null
+
+async function getVideoEngine() {
+  if (ffmpegInstance) return ffmpegInstance
+  if (!ffmpegLoadPromise) {
+    ffmpegLoadPromise = (async () => {
+      const [{ FFmpeg }, { toBlobURL }] = await Promise.all([
+        import('@ffmpeg/ffmpeg'),
+        import('@ffmpeg/util'),
+      ])
+      const engine = new FFmpeg()
+      const coreBase = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm'
+      await engine.load({
+        coreURL: await toBlobURL(coreBase + '/ffmpeg-core.js', 'text/javascript'),
+        wasmURL: await toBlobURL(coreBase + '/ffmpeg-core.wasm', 'application/wasm'),
+      })
+      ffmpegInstance = engine
+      return engine
+    })().catch(error => {
+      ffmpegLoadPromise = null
+      throw error
+    })
+  }
+  return ffmpegLoadPromise
+}
+
+export async function processVideo(file: File, options: VideoOptions): Promise<Blob> {
+  if (file.size === 0 || file.size > 50 * 1024 * 1024) throw new Error('برای پردازش ویدئو، حجم فایل باید حداکثر ۵۰ مگابایت باشد.')
+  const extension = file.name.match(/\\.(mp4|mov|webm|mkv|avi|m4v)$/i)?.[1]?.toLowerCase()
+  if (!extension) throw new Error('فرمت ویدئو پشتیبانی نمی‌شود.')
+  if (options.maxWidth < 240 || options.maxWidth > 3840) throw new Error('عرض خروجی نامعتبر است.')
+  if (options.quality < 18 || options.quality > 35) throw new Error('تنظیم کیفیت نامعتبر است.')
+  const engine = await getVideoEngine()
+  const inputName = 'filelab-input.' + extension
+  const outputName = 'filelab-output.mp4'
+  try { await engine.deleteFile(inputName) } catch { /* no previous input */ }
+  try { await engine.deleteFile(outputName) } catch { /* no previous output */ }
+  const onProgress = ({ progress }: { progress: number }) => {
+    options.onProgress?.(Math.max(0, Math.min(100, Math.round(progress * 100))))
+  }
+  engine.on('progress', onProgress)
+  try {
+    await engine.writeFile(inputName, new Uint8Array(await file.arrayBuffer()))
+    const exitCode = await engine.exec([
+      '-i', inputName,
+      '-vf', 'scale=min(' + options.maxWidth + ',iw):-2',
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', String(options.quality),
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      '-movflags', '+faststart',
+      '-y', outputName,
+    ])
+    if (exitCode !== 0) throw new Error('موتور ویدئو نتوانست فایل را تبدیل کند. ممکن است کدک ورودی پشتیبانی نشود.')
+    const result = await engine.readFile(outputName)
+    if (typeof result === 'string') throw new Error('خروجی ویدئو معتبر نیست.')
+    const bytes = new Uint8Array(result)
+    if (!bytes.length) throw new Error('فایل خروجی ویدئو خالی است.')
+    return new Blob([bytes.buffer as ArrayBuffer], { type: 'video/mp4' })
+  } finally {
+    engine.off('progress', onProgress)
+    try { await engine.deleteFile(inputName) } catch { /* cleanup best effort */ }
+    try { await engine.deleteFile(outputName) } catch { /* cleanup best effort */ }
+  }
 }

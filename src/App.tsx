@@ -5,7 +5,7 @@ import {
   Sparkles, UploadCloud, X, Zap, RotateCw, Scissors,
 } from 'lucide-react'
 import {
-  createZipFromFiles, csvToXlsx, docxToText, downloadBlob, downloadExtracted,
+  createZipFromFiles, csvToXlsx, docxToText, downloadBlob, downloadExtracted, processVideo,
   extractPdfPages, extractZip, imagesToPdf, mergePdfs, processImage, rotatePdf,
   textToDocx, xlsxToCsvZip,
 } from './lib/processors'
@@ -24,7 +24,7 @@ const tools: Tool[] = [
   { id: 'csv-xlsx', category: 'spreadsheet', title: 'CSV به Excel', description: 'فایل CSV را به workbook اکسل تبدیل کن.', titleEn: 'CSV to Excel', descriptionEn: 'Convert a CSV file into an Excel workbook.', status: 'ready', icon: FileSpreadsheet, formats: 'CSV · XLSX', accept: '.csv,text/csv' },
   { id: 'zip-extract', category: 'archive', title: 'استخراج ZIP', description: 'فایل‌های داخل آرشیو ZIP را جداگانه دریافت کن.', titleEn: 'Extract ZIP', descriptionEn: 'Extract files from a ZIP archive as individual downloads.', status: 'ready', icon: Archive, formats: 'ZIP', accept: '.zip,application/zip' },
   { id: 'zip-create', category: 'archive', title: 'ساخت ZIP', description: 'چند فایل را در یک آرشیو فشرده قرار بده.', titleEn: 'Create ZIP', descriptionEn: 'Pack multiple files into one ZIP archive.', status: 'ready', icon: Archive, formats: 'ZIP', multiple: true },
-  { id: 'video-compress', category: 'video', title: 'فشرده‌سازی ویدئو', description: 'تبدیل و فشرده‌سازی با موتور FFmpeg در مرورگر.', titleEn: 'Compress video', descriptionEn: 'Convert and compress video using an in-browser FFmpeg engine.', status: 'soon', icon: Film, formats: 'MP4 · MOV · WEBM' },
+  { id: 'video-compress', category: 'video', title: 'فشرده‌سازی ویدئو', description: 'تبدیل و فشرده‌سازی با موتور FFmpeg در مرورگر.', titleEn: 'Compress video', descriptionEn: 'Convert and compress video using an in-browser FFmpeg engine.', status: 'ready', icon: Film, formats: 'MP4 · MOV · WEBM · MKV', accept: 'video/*' },
 ]
 const categories: { id: Category; label: string; en: string; icon: typeof FileText }[] = [
   { id: 'all', label: 'همه ابزارها', en: 'All tools', icon: Layers3 },
@@ -52,6 +52,9 @@ function App() {
   const [maxWidth, setMaxWidth] = useState(2400)
   const [pageRange, setPageRange] = useState('1-3')
   const [rotation, setRotation] = useState<90 | 180 | 270>(90)
+  const [videoQuality, setVideoQuality] = useState(28)
+  const [videoWidth, setVideoWidth] = useState(1920)
+  const [videoProgress, setVideoProgress] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const filteredTools = useMemo(() => tools.filter(tool =>
@@ -67,7 +70,7 @@ function App() {
   const handleFiles = (incoming: FileList | File[]) => {
     const list = Array.from(incoming)
     if (!list.length || !selectedTool) return
-    if (list.some(file => file.size === 0 || file.size > MAX_INPUT)) return showMessage('هر فایل باید بین ۱ بایت تا ۱۰۰ مگابایت باشد.', true)
+    if (list.some(file => file.size === 0 || file.size > (selectedTool.id === 'video-compress' ? 50 * 1024 * 1024 : MAX_INPUT))) return showMessage(selectedTool.id === 'video-compress' ? 'حجم هر ویدئو حداکثر ۵۰ مگابایت است.' : 'هر فایل باید بین ۱ بایت تا ۱۰۰ مگابایت باشد.', true)
     if (!selectedTool.multiple && list.length > 1) return showMessage('این ابزار در هر بار فقط یک فایل می‌پذیرد.', true)
     const ext = (file: File) => file.name.split('.').pop()?.toLowerCase() || ''
     const valid = (file: File) => {
@@ -79,6 +82,7 @@ function App() {
         case 'xlsx-csv': return ext(file) === 'xlsx'
         case 'csv-xlsx': return ext(file) === 'csv' || file.type === 'text/csv'
         case 'zip-extract': return ext(file) === 'zip'
+        case 'video-compress': return file.type.startsWith('video/') && ['mp4','mov','webm','mkv','avi','m4v'].includes(ext(file))
         default: return true
       }
     }
@@ -150,6 +154,14 @@ function App() {
           showMessage('آرشیو ZIP ساخته شد.')
           break
         }
+        case 'video-compress': {
+          setVideoProgress(0)
+          const out = await processVideo(first, { quality: videoQuality, maxWidth: videoWidth, onProgress: setVideoProgress })
+          downloadBlob(out, first.name.replace(/\.[^.]+$/, '') + '-filelab.mp4', 'video/mp4')
+          showMessage('ویدئو به MP4 تبدیل و فشرده شد.')
+          setVideoProgress(100)
+          break
+        }
       }
     } catch (error) {
       showMessage(error instanceof Error ? error.message : 'پردازش فایل ناموفق بود.', true)
@@ -187,7 +199,7 @@ function App() {
             </div>
             <div className="hero-stats">
               <div><strong>06</strong><span>{isEnglish ? 'File categories' : 'دسته‌بندی فایل'}</span></div><i />
-              <div><strong>11</strong><span>{isEnglish ? 'Working tools' : 'ابزار فعال'}</span></div><i />
+              <div><strong>12</strong><span>{isEnglish ? 'Working tools' : 'ابزار فعال'}</span></div><i />
               <div><strong>0</strong><span>{isEnglish ? 'Uploads required' : 'آپلود اجباری'}</span></div>
             </div>
           </div>
@@ -233,9 +245,11 @@ function App() {
                   {selectedTool.id === 'image-compress' && <div className="options-panel"><label>فرمت خروجی<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>کیفیت <b>{quality}%</b><input type="range" min="30" max="100" value={quality} onChange={e => setQuality(Number(e.target.value))} /></label><label>حداکثر عرض<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
                   {selectedTool.id === 'extract-pdf' && <div className="options-panel single-option"><label>شماره صفحات (مثال: 1-3,5)<input value={pageRange} onChange={e => setPageRange(e.target.value)} placeholder="1-3,5" /></label></div>}
                   {selectedTool.id === 'rotate-pdf' && <div className="options-panel single-option"><label>میزان چرخش<select value={rotation} onChange={e => setRotation(Number(e.target.value) as typeof rotation)}><option value="90">۹۰ درجه</option><option value="180">۱۸۰ درجه</option><option value="270">۲۷۰ درجه</option></select></label></div>}
+                  {selectedTool.id === 'video-compress' && <div className="options-panel"><label>کیفیت (CRF: کمتر = بهتر)<select value={videoQuality} onChange={e => setVideoQuality(Number(e.target.value))}><option value="20">بالاتر</option><option value="24">زیاد</option><option value="28">متعادل</option><option value="32">کم‌حجم‌تر</option><option value="35">حداکثر فشرده‌سازی</option></select></label><label>حداکثر عرض<select value={videoWidth} onChange={e => setVideoWidth(Number(e.target.value))}><option value="1280">1280 px</option><option value="1920">1920 px</option><option value="2560">2560 px</option><option value="3840">3840 px</option></select></label></div>}
+                  {selectedTool.id === 'video-compress' && videoProgress > 0 && <div className="video-progress"><div><span>پیشرفت تقریبی</span><b>{videoProgress}%</b></div><span className="progress-track"><i style={{ width: videoProgress + '%' }} /></span></div>}
                   {message && <div role="status" className={messageError ? 'result-message error' : 'result-message'}>{messageError ? <X size={16} /> : <Check size={16} />}{message}</div>}
                   <button className="primary-button run-button" disabled={!files.length || busy} onClick={runTool}>{busy ? <><span className="spinner" /> {isEnglish ? 'Processing...' : 'در حال پردازش...'}</> : <>{isEnglish ? 'Process files' : 'پردازش فایل'} <ArrowLeft size={17} /></>}</button>
-                  <p className="local-note"><LockKeyhole size={14} /> {isEnglish ? 'Files are processed locally in your browser.' : 'فایل‌ها داخل مرورگر پردازش می‌شوند و به سرور آپلود نمی‌شوند.'}</p>
+                  <p className="local-note"><LockKeyhole size={14} /> {isEnglish ? 'Files are processed locally in your browser.' : 'فایل‌ها داخل مرورگر پردازش می‌شوند و به سرور آپلود نمی‌شوند.'}</p>{selectedTool.id === 'video-compress' && <p className="video-note">موتور ویدئو در اولین اجرا حدود ۳۰ مگابایت از CDN دریافت می‌کند؛ اجرای آن به حافظه و توان دستگاه وابسته است.</p>}
                 </div>
               ) : (
                 <>
