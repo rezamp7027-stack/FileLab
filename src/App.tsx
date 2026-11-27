@@ -76,13 +76,13 @@ function App() {
     const valid = (file: File) => {
       switch (selectedTool.id) {
         case 'merge-pdf': case 'extract-pdf': case 'rotate-pdf': return ext(file) === 'pdf' || file.type === 'application/pdf'
-        case 'image-compress': case 'image-pdf': return file.type.startsWith('image/') && ['png','jpg','jpeg','webp'].includes(ext(file))
+        case 'image-compress': case 'image-pdf': return (!file.type || file.type.startsWith('image/')) && ['png','jpg','jpeg','webp'].includes(ext(file))
         case 'docx-text': return ext(file) === 'docx'
         case 'txt-docx': return ext(file) === 'txt' || file.type === 'text/plain'
         case 'xlsx-csv': return ext(file) === 'xlsx'
         case 'csv-xlsx': return ext(file) === 'csv' || file.type === 'text/csv'
         case 'zip-extract': return ext(file) === 'zip'
-        case 'video-compress': return file.type.startsWith('video/') && ['mp4','mov','webm','mkv','avi','m4v'].includes(ext(file))
+        case 'video-compress': return (!file.type || file.type.startsWith('video/')) && ['mp4','mov','webm','mkv','avi','m4v'].includes(ext(file))
         default: return true
       }
     }
@@ -222,7 +222,7 @@ function App() {
         <section className="tool-section" id="tools">
           <div className="section-heading">
             <div><div className="section-kicker">{isEnglish ? 'THE TOOLBOX' : 'جعبه ابزار'}</div><h2>{isEnglish ? 'What do you need to do?' : 'چه کاری می‌خواهی انجام بدهی؟'}</h2><p>{isEnglish ? 'Pick a category or search for a specific task.' : 'یک دسته را انتخاب کن یا مستقیم دنبال ابزار موردنظرت بگرد.'}</p></div>
-            <div className="search-box"><Search size={18} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder={isEnglish ? 'Search tools...' : 'جست‌وجوی ابزار...'} /><kbd>⌘ K</kbd></div>
+            <div className="search-box"><Search size={18} /><input value={search} onChange={e => setSearch(e.target.value)} placeholder={isEnglish ? 'Search tools...' : 'جست‌وجوی ابزار...'} /></div>
           </div>
           <div className="tool-layout">
             <aside className="category-list">
@@ -235,21 +235,21 @@ function App() {
                 <div className="workspace">
                   <button className="back-link" onClick={() => { setSelectedTool(null); setFiles([]); setMessage('') }}><ArrowRight size={16} /> {isEnglish ? 'Back to tools' : 'بازگشت به ابزارها'}</button>
                   <div className="workspace-title"><span className="workspace-icon"><selectedTool.icon size={22} /></span><div><h3>{isEnglish ? selectedTool.titleEn : selectedTool.title}</h3><p>{isEnglish ? selectedTool.descriptionEn : selectedTool.description}</p></div></div>
-                  <div className="dropzone" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files) }} onClick={() => inputRef.current?.click()}>
+                  <div className="dropzone" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files) }} onClick={() => inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current?.click() } }}>
                     <input ref={inputRef} type="file" hidden multiple={!!selectedTool.multiple} accept={selectedTool.accept || '*/*'} onChange={e => { handleFiles(e.target.files || []); e.currentTarget.value = '' }} />
                     <span className="upload-icon"><UploadCloud size={25} /></span><b>{isEnglish ? 'Drop files here or browse' : 'فایل‌ها را اینجا رها کن یا انتخاب کن'}</b>
-                    <small>{selectedTool.formats} · حداکثر ۱۰۰ مگابایت برای هر فایل</small>
+                    <small>{selectedTool.formats} · {selectedTool.id === 'video-compress' ? 'حداکثر ۵۰ مگابایت' : 'حداکثر ۱۰۰ مگابایت'} برای هر فایل</small>
                     <button className="browse-button" type="button" onClick={e => { e.stopPropagation(); inputRef.current?.click() }}><FolderOpen size={15} /> {isEnglish ? 'Choose files' : 'انتخاب فایل'}</button>
                   </div>
                   {files.length > 0 && <div className="selected-files"><div className="selected-head"><b>{isEnglish ? 'Selected files' : 'فایل‌های انتخاب‌شده'}</b><button onClick={() => setFiles([])}><X size={14} /> {isEnglish ? 'Clear' : 'پاک‌کردن'}</button></div>{files.map((file, index) => <div className="selected-file" key={file.name + index}><FileText size={17} /><span>{file.name}</span><small>{(file.size / 1024 / 1024).toFixed(2)} MB</small></div>)}</div>}
-                  {selectedTool.id === 'image-compress' && <div className="options-panel"><label>فرمت خروجی<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>کیفیت <b>{quality}%</b><input type="range" min="30" max="100" value={quality} onChange={e => setQuality(Number(e.target.value))} /></label><label>حداکثر عرض<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
+                  {selectedTool.id === 'image-compress' && <div className="options-panel"><label>فرمت خروجی<select value={format} onChange={e => setFormat(e.target.value as typeof format)}><option value="image/webp">WEBP</option><option value="image/jpeg">JPG</option><option value="image/png">PNG</option></select></label><label>کیفیت (برای JPG و WEBP) <b>{quality}%</b><input type="range" min="30" max="100" value={quality} disabled={format === 'image/png'} onChange={e => setQuality(Number(e.target.value))} /></label><label>حداکثر عرض<select value={maxWidth} onChange={e => setMaxWidth(Number(e.target.value))}><option value="1200">1200 px</option><option value="1920">1920 px</option><option value="2400">2400 px</option><option value="4000">4000 px</option></select></label></div>}
                   {selectedTool.id === 'extract-pdf' && <div className="options-panel single-option"><label>شماره صفحات (مثال: 1-3,5)<input value={pageRange} onChange={e => setPageRange(e.target.value)} placeholder="1-3,5" /></label></div>}
                   {selectedTool.id === 'rotate-pdf' && <div className="options-panel single-option"><label>میزان چرخش<select value={rotation} onChange={e => setRotation(Number(e.target.value) as typeof rotation)}><option value="90">۹۰ درجه</option><option value="180">۱۸۰ درجه</option><option value="270">۲۷۰ درجه</option></select></label></div>}
                   {selectedTool.id === 'video-compress' && <div className="options-panel"><label>کیفیت (CRF: کمتر = بهتر)<select value={videoQuality} onChange={e => setVideoQuality(Number(e.target.value))}><option value="20">بالاتر</option><option value="24">زیاد</option><option value="28">متعادل</option><option value="32">کم‌حجم‌تر</option><option value="35">حداکثر فشرده‌سازی</option></select></label><label>حداکثر عرض<select value={videoWidth} onChange={e => setVideoWidth(Number(e.target.value))}><option value="1280">1280 px</option><option value="1920">1920 px</option><option value="2560">2560 px</option><option value="3840">3840 px</option></select></label></div>}
                   {selectedTool.id === 'video-compress' && videoProgress > 0 && <div className="video-progress"><div><span>پیشرفت تقریبی</span><b>{videoProgress}%</b></div><span className="progress-track"><i style={{ width: videoProgress + '%' }} /></span></div>}
                   {message && <div role="status" className={messageError ? 'result-message error' : 'result-message'}>{messageError ? <X size={16} /> : <Check size={16} />}{message}</div>}
                   <button className="primary-button run-button" disabled={!files.length || busy} onClick={runTool}>{busy ? <><span className="spinner" /> {isEnglish ? 'Processing...' : 'در حال پردازش...'}</> : <>{isEnglish ? 'Process files' : 'پردازش فایل'} <ArrowLeft size={17} /></>}</button>
-                  <p className="local-note"><LockKeyhole size={14} /> {isEnglish ? 'Files are processed locally in your browser.' : 'فایل‌ها داخل مرورگر پردازش می‌شوند و به سرور آپلود نمی‌شوند.'}</p>{selectedTool.id === 'video-compress' && <p className="video-note">موتور ویدئو در اولین اجرا حدود ۳۰ مگابایت از CDN دریافت می‌کند؛ اجرای آن به حافظه و توان دستگاه وابسته است.</p>}
+                  <p className="local-note"><LockKeyhole size={14} /> {isEnglish ? 'Files are processed locally in your browser.' : 'فایل‌ها داخل مرورگر پردازش می‌شوند و به سرور آپلود نمی‌شوند.'}</p>{selectedTool.id === 'video-compress' && <p className="video-note">{isEnglish ? 'The first run downloads about 30 MB of FFmpeg core. Processing depends on device memory and CPU.' : 'موتور ویدئو در اولین اجرا حدود ۳۰ مگابایت از CDN دریافت می‌کند؛ اجرای آن به حافظه و توان دستگاه وابسته است.'}</p>}
                 </div>
               ) : (
                 <>
