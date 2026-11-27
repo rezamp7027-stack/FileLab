@@ -182,7 +182,7 @@ function uniqueArchiveName(name: string, used: Set<string>): string {
 export async function createZipFromFiles(files: File[]): Promise<Uint8Array> {
   if (!files.length) throw new Error('برای ساخت ZIP حداقل یک فایل انتخاب کن.')
   if (files.length > MAX_ARCHIVE_ENTRIES) throw new Error('حداکثر ۵۰۰ فایل در هر ZIP مجاز است.')
-  const entries: Record<string, Uint8Array> = {}
+  const entries = Object.create(null) as Record<string, Uint8Array>
   let total = 0
   const used = new Set<string>()
   for (const file of files) {
