@@ -236,7 +236,7 @@ export async function xlsxToCsvZip(file: File): Promise<Uint8Array> {
       rows.push(values.map(value => {
         if (value instanceof Date) return value.toISOString()
         if (value && typeof value === 'object') {
-          const cell = value as Record<string, unknown>
+          const cell = value as unknown as Record<string, unknown>
           if (Array.isArray(cell.richText)) return cell.richText.map(part => {
             if (part && typeof part === 'object' && 'text' in part) return String((part as { text: unknown }).text)
             return ''
