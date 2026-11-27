@@ -24,7 +24,7 @@ function renderApp() {
   act(() => root.render(<App />))
 }
 
-function click(element: Element | null) {
+function click(element: Element | null | undefined) {
   if (!element) throw new Error('Expected clickable element was not found')
   act(() => element.dispatchEvent(new MouseEvent('click', { bubbles: true })))
 }
