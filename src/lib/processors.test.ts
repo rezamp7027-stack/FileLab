@@ -10,8 +10,8 @@ describe('PDF processors', () => {
     const a = await PDFDocument.create(); a.addPage()
     const b = await PDFDocument.create(); b.addPage(); b.addPage()
     const merged = await mergePdfs([
-      new File([await a.save()], 'a.pdf', { type: 'application/pdf' }),
-      new File([await b.save()], 'b.pdf', { type: 'application/pdf' }),
+      new File([new Uint8Array(await a.save()).buffer as ArrayBuffer], 'a.pdf', { type: 'application/pdf' }),
+      new File([new Uint8Array(await b.save()).buffer as ArrayBuffer], 'b.pdf', { type: 'application/pdf' }),
     ])
     expect((await PDFDocument.load(merged)).getPageCount()).toBe(3)
   })
@@ -19,7 +19,7 @@ describe('PDF processors', () => {
   it('extracts a selected page range', async () => {
     const source = await PDFDocument.create()
     source.addPage(); source.addPage(); source.addPage()
-    const file = new File([await source.save()], 'source.pdf', { type: 'application/pdf' })
+    const file = new File([new Uint8Array(await source.save()).buffer as ArrayBuffer], 'source.pdf', { type: 'application/pdf' })
     const result = await extractPdfPages(file, '1,3')
     expect((await PDFDocument.load(result)).getPageCount()).toBe(2)
     await expect(extractPdfPages(file, '0-2')).rejects.toThrow()
