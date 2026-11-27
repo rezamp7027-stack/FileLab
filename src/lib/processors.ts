@@ -127,20 +127,15 @@ export function extractZip(fileBytes: Uint8Array): ExtractedEntry[] {
   return output
 }
 
-export function createZip(files: File[]): Uint8Array {
-  if (!files.length) throw new Error('برای ساخت ZIP حداقل یک فایل انتخاب کن.')
-  if (files.length > MAX_ARCHIVE_ENTRIES) throw new Error('حداکثر ۵۰۰ فایل در هر ZIP مجاز است.')
-  const entries: Record<string, Uint8Array> = {}
-  let total = 0
-  for (const file of files) {
-    assertFileSize(file)
-    const name = file.name.replace(/[\\/]/g, '_').replace(/^\.+/, '').trim()
-    if (!name) continue
-    total += file.size
-    if (total > MAX_ARCHIVE_OUTPUT_BYTES) throw new Error('حجم مجموع فایل‌ها از ۲۵۰ مگابایت بیشتر است.')
-    entries[name] = new Uint8Array()
-  }
-  return zipSync(entries, { level: 6 })
+function uniqueArchiveName(name: string, used: Set<string>): string {
+  const dot = name.lastIndexOf('.')
+  const base = dot > 0 ? name.slice(0, dot) : name
+  const extension = dot > 0 ? name.slice(dot) : ''
+  let candidate = name
+  let index = 2
+  while (used.has(candidate.toLowerCase())) candidate = base + ' (' + index++ + ')' + extension
+  used.add(candidate.toLowerCase())
+  return candidate
 }
 
 export async function createZipFromFiles(files: File[]): Promise<Uint8Array> {
@@ -148,10 +143,12 @@ export async function createZipFromFiles(files: File[]): Promise<Uint8Array> {
   if (files.length > MAX_ARCHIVE_ENTRIES) throw new Error('حداکثر ۵۰۰ فایل در هر ZIP مجاز است.')
   const entries: Record<string, Uint8Array> = {}
   let total = 0
+  const used = new Set<string>()
   for (const file of files) {
     assertFileSize(file)
-    const name = file.name.replace(/[\\/]/g, '_').replace(/^\.+/, '').trim()
-    if (!name) continue
+    const rawName = file.name.replace(/[\\/]/g, '_').replace(/^\\.+/, '').trim()
+    if (!rawName) continue
+    const name = uniqueArchiveName(rawName, used)
     total += file.size
     if (total > MAX_ARCHIVE_OUTPUT_BYTES) throw new Error('حجم مجموع فایل‌ها از ۲۵۰ مگابایت بیشتر است.')
     entries[name] = new Uint8Array(await file.arrayBuffer())
